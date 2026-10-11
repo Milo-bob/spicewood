@@ -69,6 +69,9 @@ const Music=(()=>{
     forest:{bpm:72,root:52,scale:[0,3,5,7,10],prog:[0,-4,-2,-5],mel:.3,melWave:'triangle',bass:.05,pad:.035,seed:21},
     marsh:{bpm:60,root:55,scale:[0,2,3,7,9],prog:[0,0,-2,-2],mel:.28,melWave:'sine',bass:.045,pad:.04,seed:33,oct:12},
     dungeon:{bpm:56,root:45,scale:[0,1,5,7,8],prog:[0,0,-4,-2],mel:.18,melWave:'sine',bass:.06,pad:.04,seed:41},
+    rust:{bpm:68,root:47,scale:[0,2,5,7,9],prog:[0,-3,-5,-2],mel:.32,melWave:'triangle',bass:.055,pad:.03,seed:61},
+    grove:{bpm:54,root:43,scale:[0,2,3,6,7],prog:[0,-2,-5,-4],mel:.22,melWave:'sine',bass:.05,pad:.045,seed:73},
+    heart:{bpm:60,root:50,scale:[0,2,4,7,9],prog:[0,-3,-5,-7],mel:.4,melWave:'triangle',bass:.055,pad:.04,seed:91},
     boss:{bpm:132,root:48,scale:[0,3,5,6,7,10],prog:[0,0,-2,-4],mel:.6,melWave:'square',bass:.05,pad:.02,seed:51,drive:true}
   };
   function note(f,t,dur,type,vol){

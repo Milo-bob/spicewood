@@ -15,25 +15,25 @@ const potCap=()=>9+3*(baseLv('alch')-1);
 
 // ---------- building upgrades ----------
 const BUILD={
-  smithy:{name:'Smithy',costs:[null,{wood:10,ore:8,gold:100},{wood:25,ore:20,gold:300}],
-    gate:[null,()=>flags.boss,()=>flags.boss2],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first'],
-    perk:['Forge Fine gear, upgrade items to +3','Forge Rare gear, upgrade to +6','Forge Epic gear, upgrade to +9']},
-  alch:{name:'Alchemist',costs:[null,{wood:6,herb:8,gold:80},{wood:12,herb:20,gold:250}],
-    gate:[null,()=>flags.boss,()=>flags.boss2],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first'],
-    perk:['Brew potions','Elixirs, potions heal 25% more','Greater elixirs, potions heal 50% more']},
-  tavern:{name:'Tavern',costs:[null,{wood:8,leather:5,gold:80},{wood:16,leather:12,gold:250}],
-    gate:[null,()=>flags.boss,()=>flags.boss2],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first'],
-    perk:['Rest and simple meals','Stronger meals, hunter\'s roast','Feasts, longest buffs']},
-  store:{name:'Storehouse',costs:[null,{wood:12,ore:6,gold:100},{wood:30,ore:15,gold:300}],
-    gate:[null,()=>flags.stage>=2,()=>flags.boss],gateText:['','Accept the Elder\'s quest first','Defeat Old Barkfather first'],
-    perk:['Bag: 20 slots','Bag: 30 slots','Bag: 40 slots']}
+  smithy:{name:'Smithy',costs:[null,{wood:10,ore:8,gold:100},{wood:25,ore:20,gold:300},{wood:40,ore:35,gold:600},{wood:60,ore:55,gold:1000}],
+    gate:[null,()=>flags.boss,()=>flags.boss2,()=>flags.boss3,()=>flags.boss4],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first','Defeat The Drowned Matron in the Sunken Shrine first','Defeat The Rust Warden in the Rustpeak Mine first'],
+    perk:['Forge Fine gear, upgrade items to +3','Forge Rare gear, upgrade to +6','Forge Epic gear, upgrade to +9','Forge Epic gear, upgrade to +12','Forge Legendary gear, upgrade to +15']},
+  alch:{name:'Alchemist',costs:[null,{wood:6,herb:8,gold:80},{wood:12,herb:20,gold:250},{wood:20,herb:35,gold:500},{wood:30,herb:50,gold:900}],
+    gate:[null,()=>flags.boss,()=>flags.boss2,()=>flags.boss3,()=>flags.boss4],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first','Defeat The Drowned Matron in the Sunken Shrine first','Defeat The Rust Warden in the Rustpeak Mine first'],
+    perk:['Brew potions','Elixirs, potions heal 25% more','Greater elixirs, potions heal 50% more','Potions heal 75% more, stronger elixirs','Potions heal 100% more, mightiest elixirs']},
+  tavern:{name:'Tavern',costs:[null,{wood:8,leather:5,gold:80},{wood:16,leather:12,gold:250},{wood:28,leather:20,gold:500},{wood:40,leather:30,gold:900}],
+    gate:[null,()=>flags.boss,()=>flags.boss2,()=>flags.boss3,()=>flags.boss4],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first','Defeat The Drowned Matron in the Sunken Shrine first','Defeat The Rust Warden in the Rustpeak Mine first'],
+    perk:['Rest and simple meals','Stronger meals, hunter\'s roast','Feasts, longest buffs','Stronger feasts and longer buffs','Royal feasts, the longest buffs']},
+  store:{name:'Storehouse',costs:[null,{wood:12,ore:6,gold:100},{wood:30,ore:15,gold:300},{wood:45,ore:25,gold:600},{wood:60,ore:40,gold:1000}],
+    gate:[null,()=>flags.stage>=2,()=>flags.boss,()=>flags.boss2,()=>flags.boss3],gateText:['','Accept the Elder\'s quest first','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first','Defeat The Drowned Matron in the Sunken Shrine first'],
+    perk:['Bag: 20 slots','Bag: 30 slots','Bag: 40 slots','Bag: 50 slots','Bag: 60 slots']}
 };
 function upgradeOption(id){
   const B=BUILD[id];
-  return{t:()=>{const l=baseLv(id);return l>=3?`${B.name} is at max level (Lv 3)`:`Upgrade ${B.name} to Lv ${l+1}: ${B.perk[l]}  (${costText(B.costs[l])})`},
+  return{t:()=>{const l=baseLv(id);return l>=5?`${B.name} is at max level (Lv 5)`:`Upgrade ${B.name} to Lv ${l+1}: ${B.perk[l]}  (${costText(B.costs[l])})`},
     fn(){
       const l=baseLv(id);
-      if(l>=3){toast(`${B.name} is already at max level`,'#ff8070');return true}
+      if(l>=5){toast(`${B.name} is already at max level`,'#ff8070');return true}
       if(!B.gate[l]()){toast(B.gateText[l],'#ff8070');return true}
       if(!canPay(B.costs[l])){toast('Not enough materials','#ff8070');return true}
       pay(B.costs[l]);flags.base[id]=l+1;Snd.level();toast(`${B.name} upgraded to Lv ${l+1}!`,'#ffe040');
@@ -74,7 +74,7 @@ const FORGE=[
   {slot:'amulet',n:'Amulet',cost:{ore:3,herb:3,shell:2}},
   {slot:'ring',n:'Ring',cost:{ore:2,herb:2,shell:2}}
 ];
-const RNAME=['Common','Fine','Rare','Epic'];
+const RNAME=['Common','Fine','Rare','Epic','Legendary'];
 function smithMenu(){
   return menu(()=>`Smithy Lv ${baseLv('smithy')}`,[
     {t:'Forge new gear',fn(){ui=forgeMenu();return true}},
@@ -88,7 +88,7 @@ function smithMenu(){
     {t:'Leave',fn(){}}],true,matsLine);
 }
 function forgeMenu(){
-  const lv=baseLv('smithy'),minR=Math.min(3,lv);
+  const lv=baseLv('smithy'),minR=lv>=5?4:Math.min(3,lv);
   const opts=FORGE.map(f=>{
     const cost=Object.assign({},f.cost,{gold:15+P.lvl*8});
     return{t:()=>`${f.n}  (${costText(cost)})  ${RNAME[minR]}+`,fn(){
@@ -150,8 +150,8 @@ function alchMenu(){
   return menu(()=>`Alchemist Lv ${lv()}`,[
     {t:()=>`Buy Healing Potion  20g   (you have ${P.potions}/${potCap()})`,fn(){if(P.gold<20||P.potions>=potCap()){toast(P.potions>=potCap()?'You cannot carry more':'Not enough gold','#ff8070');return true}P.gold-=20;P.potions++;Snd.coin();return true}},
     brew(1,{herb:2},'Brew 1 potion'),brew(5,{herb:8},'Brew 5 potions'),
-    elixir('elixir','Elixir of Might',{herb:3,shell:1},l=>({dmgPct:l>=3?30:20}),2),
-    elixir('elixir','Elixir of Stone',{herb:3,leather:1},l=>({armor:l>=3?25:15}),2),
+    elixir('elixir','Elixir of Might',{herb:3,shell:1},l=>({dmgPct:10*l}),2),
+    elixir('elixir','Elixir of Stone',{herb:3,leather:1},l=>({armor:10*l-5}),2),
     upgradeOption('alch'),
     {t:'Leave',fn(){}}],true,matsLine);
 }

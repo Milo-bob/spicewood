@@ -1,6 +1,6 @@
 # Spicewood
 
-A top-down autumn action-RPG for the browser (HTML5 Canvas, no dependencies, runs as a static page).
+Hero select, the village of Hearthmoor and seven areas to explore: Ember Glade, Amber Hollow, Mistwater Marsh, Rustpeak, Ghostbark Grove and the Heart of Spicewood. Five dungeons (Hollow Oak, Spore Warren, Sunken Shrine, Rustpeak Mine, Ghostbark Crypt) with bosses, and a final boss at the Heart. Gate items (Thornsickle, Wooden Boots, Grapple Hook, Miner's Lantern, Heartseed) open new areas.
 Hero select, the village of Hearthmoor, Ember Glade, Amber Hollow, Mistwater Marsh and two dungeons (Hollow Oak, Spore Warren) with bosses. Gate items (Thornsickle, Wooden Boots) open new areas.
 
 ## Controls
@@ -15,7 +15,7 @@ Hero select, the village of Hearthmoor, Ember Glade, Amber Hollow, Mistwater Mar
 Gather wood, ore, herbs, leather and shells in the wild (cut logs and ore veins, pick herbs, loot enemies). In Hearthmoor the Smithy forges, upgrades, reforges and salvages gear, the Alchemist brews potions and elixirs, the Tavern serves buffing meals and the Storehouse expands your bag. Upgrading buildings is tied to story progress.
 
 ## Embedding
-Designed to run inside an iframe on Holiday Games. It posts `{type:'ready'}` on load and `{type:'score', value}` on level-up.
+Designed to run inside an iframe on Holiday Games. It posts `{type:'ready'}` on load, `{type:'score', value}` on level-up and `{type:'gameOver', score}` when the final boss is defeated.
 
 ## Run locally
 Open `index.html` in a browser (or serve the folder with any static server).

@@ -34,6 +34,8 @@ const ENEMIES={
   shroom:{name:'Nutmeg Shroomling',hp:18,dmg:5,speed:22,xp:8,gold:[2,5],hw:4,hh:4,aggro:130},
   bat:{name:'Mire Bat',hp:14,dmg:5,speed:70,xp:9,gold:[2,5],hw:5,hh:4,aggro:140},
   brute:{name:'Capcrusher',hp:70,dmg:11,speed:18,xp:22,gold:[4,9],hw:7,hh:6,aggro:120},
+  skeleton:{name:'Grave Walker',hp:40,dmg:9,speed:34,xp:14,gold:[3,7],hw:5,hh:5,aggro:110},
+  ghost:{name:'Wailing Ghost',hp:24,dmg:8,speed:52,xp:14,gold:[3,8],hw:5,hh:5,aggro:150},
   boss:{name:'Old Barkfather',hp:520,dmg:14,speed:22,xp:200,gold:[80,120],hw:12,hh:10,aggro:150}
 };
 

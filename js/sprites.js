@@ -92,7 +92,7 @@ const Spr=(()=>{
     '.ssssm',
     '..ssss',
     '..s...']),{r:'#8a4a9a',w:'#f0e0ff',d:'#4a2a5a',s:'#d8c8b0',e:'#1b1b1b',m:'#6a2a2a'});
-  enemy.boss2=make(sym([
+  const B2ROWS=[
     '..rrrrrr',
     '.rrwrrrr',
     'rrrrrrwr',
@@ -108,7 +108,102 @@ const Spr=(()=>{
     '..lssssl',
     '.l.sssss',
     'l..ss.ss',
-    '...s..s.']),{r:'#8a3aaa',w:'#f0d8ff',d:'#3a1a4a',s:'#d0c0a8',e:'#1b1b1b',m:'#2a0a1a',l:'#a08a68'},2);
+    '...s..s.'];
+  enemy.boss2=make(sym(B2ROWS),{r:'#8a3aaa',w:'#f0d8ff',d:'#3a1a4a',s:'#d0c0a8',e:'#1b1b1b',m:'#2a0a1a',l:'#a08a68'},2);
+  // The Drowned Matron: hooded bog witch with dripping tendrils
+  enemy.boss3=make(sym([
+    '...rrrrr',
+    '..rrwrrr',
+    '.rrrrrrr',
+    '.rrddddd',
+    '.rdsssss',
+    '.rdsessw',
+    '.rdssmmm',
+    '.rrdssdd',
+    '..rrrrrr',
+    '.rrwrrrr',
+    'rrrrrrrr',
+    'rrdrrrdr',
+    'rd.rrd.r',
+    'd.lrrl.d',
+    '..l.l.l.']),{r:'#2f8a8a',w:'#a8f0e0',d:'#123a3a',s:'#7aa898',e:'#ffe060',m:'#0a1a1a',l:'#5a8a7a'},2);
+  // The Rust Warden: horned stone and iron golem
+  enemy.boss4=make(sym([
+    'lll...dd',
+    '.lldddss',
+    '..ddssss',
+    '..dsseww',
+    '..dsssss',
+    '..dsmmmm',
+    'dddddddd',
+    'dsssrrss',
+    'dsssrrss',
+    'dsssssss',
+    '.dssssss',
+    '.dddddd.',
+    '.dss..ss',
+    '.dss..ss',
+    '.ddd..dd']),{s:'#8b8478',d:'#4a4238',r:'#a0522d',l:'#d8c8a0',e:'#ff9a20',w:'#b8b0a0',m:'#1a0e08'},2);
+  // The Hollow King: crowned skeleton in a violet cloak
+  enemy.boss5=make(sym([
+    '..l.l.l.',
+    '..llllll',
+    '..wwwwww',
+    '.wwwwwww',
+    '.wweewww',
+    '.wwwwwww',
+    '..wddddd',
+    '.pppwwww',
+    'pppwbbbb',
+    'pppwbbbb',
+    'pppppbbb',
+    'pppppppb',
+    'ppppppp.',
+    'pppp.ppp',
+    'ppp..ppp',
+    '.pp..ppp']),{l:'#e8c040',w:'#e8e4d0',e:'#7af0ff',d:'#7a7460',p:'#4a2a6a',b:'#b8b4a0'},2);
+  // The Heartwood: the ancient tree itself
+  enemy.boss6=make(sym([
+    '..gggooo',
+    '.ggyggog',
+    'gggggygg',
+    'goggggog',
+    '.gbbbbbb',
+    '..bdeebb',
+    '..bbbbbb',
+    '..bdmmmm',
+    '..bbbdmm',
+    '...bbbbb',
+    '..lbbbbb',
+    '.lbbbbbb',
+    'lb.bbbbb',
+    'b..bbbbb',
+    'l..bb.bb',
+    '...b..b.']),{g:'#5aa03a',o:'#d8741e',y:'#e8b838',b:'#6a4424',d:'#3a2412',e:'#ffe060',m:'#140a06',l:'#8a5c30'},2);
+  enemy.skeleton=make(sym([
+    '..www',
+    '.wwww',
+    'wwwww',
+    'wekww',
+    '.wwww',
+    '.wddw',
+    '..www',
+    '.wbbb',
+    'wwbwb',
+    '.wbbb',
+    '..w.w',
+    '..w.w']),{w:'#e8e4d0',e:'#1b1b1b',k:'#1b1b1b',d:'#8a8470',b:'#b8b4a0'});
+  enemy.ghost=make(sym([
+    '..gggg',
+    '.ggggg',
+    'gggggg',
+    'gggegg',
+    'gggegg',
+    'gggmmm',
+    'gggggg',
+    'gggggg',
+    'g.gg.g',
+    '.g..g.']),{g:'rgba(190,232,224,.9)',e:'#102020',m:'#102020'});
   enemy.boss=make(sym([
     '..gg..gg',
     '.ggggggg',
@@ -177,6 +272,12 @@ const Spr=(()=>{
     multi(18,(g,r)=>{grass(g,r);const cs=['#e8d040','#e86a8a','#f0f0f0','#c070e0','#ff9a2a'];for(let i=0;i<6;i++){const x=Math.floor(r()*14)+1,y=Math.floor(r()*13)+2;R(g,'#4a6a22',x,y+1,1,2);R(g,cs[Math.floor(r()*cs.length)],x,y,1+(r()<.4?1:0),1)}});
     multi(19,(g,r)=>{R(g,'#4a3018',0,0,16,16);for(let y=1;y<16;y+=4)R(g,'#5e3c20',0,y,16,2);for(let x=2;x<16;x+=5)for(let y=0;y<16;y+=4){R(g,'#6a9a30',x,y,1,2);R(g,r()<.5?'#d8741e':'#8abc40',x-1,y-1<0?0:y-1,3,1)}});
     multi(25,(g,r)=>{R(g,'#4d9aa6',0,0,16,16);for(let i=0;i<5;i++)R(g,'#9fd8de',Math.floor(r()*12),Math.floor(r()*15),3+Math.floor(r()*3),1);speck(g,r,['#2f6672'],6);for(let i=0;i<3;i++){const x=Math.floor(r()*14)+1;R(g,'#3e7a2a',x,Math.floor(r()*6)+3,1,6);R(g,'#7ab04a',x,Math.floor(r()*6)+2,1,2)}});
+    multi(27,(g,r)=>{R(g,'#5a4a3a',0,0,16,16);R(g,'#0c0806',2,0,12,16);R(g,'#1a120c',3,0,10,16);for(let i=0;i<4;i++)R(g,'#2a1c12',3+Math.floor(r()*8),Math.floor(r()*14),2+Math.floor(r()*3),1);R(g,'#7a6650',0,0,2,16);R(g,'#7a6650',14,0,2,16);R(g,'#3e3226',2,0,1,16);R(g,'#3e3226',13,0,1,16);speck(g,r,['#8a7660','#4a3c2e'],6)});
+    multi(28,(g,r)=>{R(g,'#0c0806',0,0,16,16);R(g,'#1a120c',0,3,16,10);R(g,'#7a6650',0,0,16,2);R(g,'#7a6650',0,14,16,2);for(let x=0;x<16;x+=4){R(g,'#8a5a2a',x,2,3,12);R(g,'#b07a3a',x,2,3,2);R(g,'#5a3a18',x+3,2,1,12)}R(g,'#6a4a22',0,4,16,1);R(g,'#6a4a22',0,11,16,1)});
+    multi(29,(g,r)=>{R(g,'#8a7a66',0,0,16,16);speck(g,r,['#9c8c76','#76664f','#a89880','#6a5640'],24);if(r()<.35)R(g,'#a0522d',Math.floor(r()*12),Math.floor(r()*14),3,1);if(r()<.25)R(g,'#5e5240',Math.floor(r()*12),Math.floor(r()*14),4,1)});
+    multi(30,(g,r)=>{R(g,'#8a7a66',0,0,16,16);speck(g,r,['#9c8c76','#76664f','#a89880'],16);R(g,'rgba(0,0,0,.25)',1,12,14,3);R(g,'#4e463c',1,2,14,12);R(g,'#6e665a',1,1,13,11);R(g,'#8e867a',3,2,5,2);R(g,'#a0522d',9,5,3,2);R(g,'#3a342c',2,11,12,2)});
+    multi(31,(g,r)=>{R(g,'#2e3a3a',0,0,16,16);speck(g,r,['#3a4848','#243030','#46585a','#566a6a'],24);if(r()<.3)R(g,'#7a9a8a',Math.floor(r()*13),Math.floor(r()*14),2,1)});
+    multi(32,(g,r,v)=>{R(g,'#2e3a3a',0,0,16,16);speck(g,r,['#3a4848','#243030'],10);R(g,'rgba(0,0,0,.3)',2,12,12,3);R(g,'#1a1a1e',6,7,4,8);R(g,'#8a9a98',1,1,14,9);R(g,'#b8c8c4',3,1,8,3);R(g,'#5a6a68',1,8,14,2);for(let i=0;i<3;i++)R(g,'#d8e8e4',Math.floor(r()*12)+1,Math.floor(r()*6)+1,2,1)});
     multi(T.OAK,(g,r)=>{R(g,'#5a3a1c',0,0,16,16);R(g,'#3e2810',0,0,2,16);R(g,'#3e2810',14,0,2,16);R(g,'#120a06',2,1,12,15);R(g,'#1e120a',4,3,8,13);R(g,'#2a1a0e',6,6,4,10);R(g,'#7a5a2c',1,0,14,1)});
   }
   build();

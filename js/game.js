@@ -10,9 +10,12 @@ let flags=null;
 const fade={a:0,dir:0,fn:null};
 const cam={x:0,y:0};
 const MAXLVL=15;
-const QUEST=['Talk to Elder Maren in the village','Find the Hollow Oak north of Ember Glade','Defeat Old Barkfather in the Hollow Oak','Return to Elder Maren','Cut the thorn vines at the east edge of Ember Glade','Find the Spore Warren in Amber Hollow','Wade through the flooded ford east of Amber Hollow','Explore Mistwater Marsh (Rustpeak is coming soon)'];
+const QUEST=['Talk to Elder Maren in the village','Find the Hollow Oak north of Ember Glade','Defeat Old Barkfather in the Hollow Oak','Return to Elder Maren','Cut the thorn vines at the east edge of Ember Glade','Find the Spore Warren in Amber Hollow','Wade through the flooded ford east of Amber Hollow','Find the Sunken Shrine in Mistwater Marsh','Cross the gorge at the east edge of the marsh with your Grapple Hook','Find the Rustpeak Mine in the highlands','Light the dark tunnel east of Rustpeak with the Miner\'s Lantern','Find the Ghostbark Crypt in the grove','Open the root-gate at the east edge of Ghostbark Grove with the Heartseed','End the blight at the Heart of Spicewood','The Spicewood is saved! Roam freely and grow stronger'];
+const BOSSES={barkfather:{name:'Old Barkfather',flag:'boss',stage:3,msg:'Old Barkfather has fallen!'},mycelia:{name:'Mother Mycelia',flag:'boss2',stage:6,msg:'Mother Mycelia has withered!'},drowned:{name:'The Drowned Matron',flag:'boss3',stage:8,msg:'The Drowned Matron sinks back into the deep!'},warden:{name:'The Rust Warden',flag:'boss4',stage:10,msg:'The Rust Warden crumbles to scrap!'},king:{name:'The Hollow King',flag:'boss5',stage:12,msg:'The Hollow King falls to dust!'},heartwood:{name:'The Heartwood',flag:'boss6',stage:14,msg:'The Heartwood falls, and the blight lifts!'}};
+const bossOf=e=>BOSSES[e.variant||'barkfather'];
+const BOSSSPR={mycelia:'boss2',drowned:'boss3',warden:'boss4',king:'boss5',heartwood:'boss6'};
 const SAVE_KEY='spicewood_save_v1';
-const ZONEMUSIC={village:'village',glade:'forest',amber:'forest',marsh:'marsh',dungeon:'dungeon',spore:'dungeon'};
+const ZONEMUSIC={village:'village',glade:'forest',amber:'forest',marsh:'marsh',dungeon:'dungeon',spore:'dungeon',shrine:'dungeon',mine:'dungeon',rust:'rust',grove:'grove',crypt:'dungeon',heart:'heart'};
 const FONT='"Segoe UI",Tahoma,Verdana,Arial,sans-serif';
 
 // ---------- small helpers ----------
@@ -65,7 +68,7 @@ function newPlayer(idx){
      mats:{},buffs:[],learned:{},sp:0,bound:h.skills.map(k=>k.id),cdMax:[1,1],buff:null,mods:{},critMult:1.7,stealth:0,dashMult:1.8};
   P.eq.weapon={slot:'weapon',name:'Worn '+h.weaponNames[0],base:h.weaponNames[0],r:0,ilvl:1,dmg:5,aff:[]};
   recalc();P.hp=P.maxHp;
-  flags={stage:0,boss:false,sickle:false,chests:{},dun:{},cut:{},boss2:false,boots:false,rewarded:false,base:{smithy:1,alch:1,tavern:1,store:1}};
+  flags={stage:0,boss:false,sickle:false,chests:{},dun:{},cut:{},boss2:false,boots:false,boss3:false,boss4:false,boss5:false,boss6:false,hook:false,lantern:false,heartseed:false,rewarded:false,base:{smithy:1,alch:1,tavern:1,store:1}};
   P.keys=0;
 }
 function recalc(){
@@ -134,7 +137,7 @@ function loadGame(){
     newPlayer(s.h);
     Object.assign(P,{lvl:s.lvl,xp:s.xp,pts:s.pts,alloc:s.alloc,gold:s.gold,potions:s.pot,bag:s.bag,eq:s.eq,learned:s.learned||{},sp:s.sp||0,mats:s.mats||{}});
     if(s.bound)P.bound=s.bound;
-    flags=Object.assign({stage:0,boss:false,sickle:false,chests:{},dun:{},cut:{},boss2:false,boots:false,rewarded:false,base:{smithy:1,alch:1,tavern:1,store:1}},s.flags);flags.rewarded=flags.rewarded||flags.stage>=4;P.keys=s.keys||0;
+    flags=Object.assign({stage:0,boss:false,sickle:false,chests:{},dun:{},cut:{},boss2:false,boots:false,boss3:false,boss4:false,boss5:false,boss6:false,hook:false,lantern:false,heartseed:false,rewarded:false,base:{smithy:1,alch:1,tavern:1,store:1}},s.flags);flags.rewarded=flags.rewarded||flags.stage>=4;P.keys=s.keys||0;
     recalc();P.hp=Math.min(s.hp||P.maxHp,P.maxHp);
     scene='play';ui=null;toasts=[];loadMap(s.map,s.x,s.y);return true;
   }catch(e){return false}
@@ -185,18 +188,19 @@ function makeEnemy(type,x,y,lvl,elite,variant){
 function loadMap(id,x,y){
   M=MAPS[id]();E=[];PR=[];EP=[];DR=[];FX=[];FT=[];
   if(flags.cut&&flags.cut[id])applyCut();
+  if(flags.hook)for(let i=0;i<M.t.length;i++)if(M.t[i]===T.GORGE)M.t[i]=T.BRIDGE;
   buildLayer();
   NP=M.npcs;
   CH=M.chests.map(c=>Object.assign({},c,{open:!!flags.chests[c.id]}));
   for(const g of M.gates||[]){
-    if(g.id==='orbW'&&flags.dun.orb)g.open=true;
+    if(g.kind==='orb'&&flags.dun[g.flag||'orb'])g.open=true;
     if(g.kind==='key'&&flags.dun[g.flagKey||'keydoor'])g.open=true;
     if(g.kind==='plate'&&flags.dun[g.flag])g.open=true;
     if(g.kind==='room'&&flags.dun[g.room])g.open=true;
     if(!g.open)for(const[x,y]of g.tiles)M.t[y*M.w+x]=T.BARRIER;
   }
   for(const s of M.spawns){
-    if(s.type==='boss'&&(s.variant==='mycelia'?flags.boss2:flags.boss))continue;
+    if(s.type==='boss'&&flags[bossOf(s).flag])continue;
     if(s.room&&flags.dun[s.room])continue;
     const e=makeEnemy(s.type,s.x,s.y,s.lvl,s.elite,s.variant);e.room=s.room;E.push(e);
   }
@@ -205,8 +209,15 @@ function loadMap(id,x,y){
     if(flags.boss)bossAftermath(true);
   }
   if(id==='spore'&&flags.boss2)bossAftermath(true);
+  if(id==='shrine'&&flags.boss3)bossAftermath(true);
+  if(id==='mine'&&flags.boss4)bossAftermath(true);
+  if(id==='crypt'&&flags.boss5)bossAftermath(true);
+  if(id==='heart'&&flags.boss6)bossAftermath(true);
   if(id==='amber'&&flags.stage>=3&&flags.stage<5)flags.stage=5;
   if(id==='marsh'&&flags.stage<7)flags.stage=7;
+  if(id==='rust'&&flags.stage<9)flags.stage=9;
+  if(id==='grove'&&flags.stage<11)flags.stage=11;
+  if(id==='heart'&&flags.stage<13)flags.stage=13;
   DELAY=[];TRAPS=[];
   Music.play(ZONEMUSIC[id]);
   P.x=x;P.y=y;P.dashT=0;P.rollT=0;P.att=null;P.kx=P.ky=0;
@@ -216,7 +227,11 @@ function loadMap(id,x,y){
 }
 const AFTER={
   dungeon:{chest:'boss',cx:20,cy:3,wx:19,wy:7,to:'glade',tx:30*TS,ty:4.5*TS},
-  spore:{chest:'boss2',cx:22,cy:3,wx:21,wy:7,to:'amber',tx:46*TS,ty:4.5*TS}
+  spore:{chest:'boss2',cx:22,cy:3,wx:21,wy:7,to:'amber',tx:46*TS,ty:4.5*TS},
+  shrine:{chest:'boss3',cx:22,cy:3,wx:21,wy:7,to:'marsh',tx:34*TS,ty:13*TS},
+  mine:{chest:'boss4',cx:22,cy:3,wx:21,wy:7,to:'rust',tx:50*TS,ty:4.5*TS},
+  crypt:{chest:'boss5',cx:22,cy:3,wx:21,wy:7,to:'grove',tx:44*TS,ty:4.5*TS},
+  heart:{chest:'boss6',cx:26,cy:3,wx:25,wy:11,to:'grove',tx:52*TS,ty:26.5*TS}
 };
 function applyCut(){
   for(let i=0;i<M.t.length;i++)if(M.t[i]===T.VINE)M.t[i]=T.PATH;
@@ -341,7 +356,7 @@ function killEnemy(e){
   gainXp(Math.round(d.xp*m*(e.elite?2.5:1)*1.4));
   dropGold(e.x,e.y,Math.round(randi(d.gold[0],d.gold[1])*(1+.4*(e.lvl-1))*(e.elite?3:1)));
   if(Math.random()<.12)DR.push({kind:'hp',x:e.x,y:e.y,t:0,vx:rand(-20,20),vy:rand(-20,20)});
-  const mt={beetle:'shell',wolf:'leather',shroom:'herb',bat:'leather',brute:'herb'}[e.type];
+  const mt={beetle:'shell',wolf:'leather',shroom:'herb',bat:'leather',brute:'herb',skeleton:'ore',ghost:'herb'}[e.type];
   if(mt&&Math.random()<(e.elite?1:.6))dropMat(e.x,e.y,mt,(e.elite?2:1)+(e.type==='brute'?1:0));
   if(e.type==='brute'&&Math.random()<.4)dropMat(e.x,e.y,'shell',1);
   if(e.type==='beetle'&&Math.random()<.25)dropMat(e.x,e.y,'ore',1);
@@ -350,13 +365,12 @@ function killEnemy(e){
   puff(e.x,e.y,12,e.type==='shroom'?'#c8501e':e.type==='wolf'?'#8b8478':'#c2551d',80);
 }
 function bossDefeated(e){
-  EP=[];const my=e.variant==='mycelia';
-  if(my){flags.boss2=true;flags.dun.boss2=true;if(flags.stage<6)flags.stage=6}
-  else{flags.boss=true;flags.dun.boss=true;if(flags.stage<3)flags.stage=3}
+  EP=[];const bi=bossOf(e);
+  flags[bi.flag]=true;flags.dun[bi.flag]=true;if(flags.stage<bi.stage)flags.stage=bi.stage;
   for(let i=0;i<30;i++)puff(e.x+rand(-14,14),e.y+rand(-14,14),3,'#d8741e',110);
   fx({k:'ring',x:e.x,y:e.y,r0:6,r1:120,t:0,dur:1,c:'#ffd080'});
   Snd.boom();shake=10;
-  toast(my?'Mother Mycelia has withered!':'Old Barkfather has fallen!','#ffd040');
+  toast(bi.msg,'#ffd040');
   bossAftermath();
   E.forEach(o=>{if(o!==e&&!o.dead&&o.type!=='boss'){o.hp=0;o.dead=true}});
   save();
@@ -376,8 +390,29 @@ function openChest(c){
     for(const[m_,n_]of[['shell',6],['ore',12],['wood',8],['leather',6],['herb',8]])dropMat(c.x+rand(-12,12),c.y+rand(8,16),m_,n_);
     flags.boots=true;
     ui={mode:'dialog',d:{name:'Treasure',pages:['You obtained the WOODEN BOOTS!','A gate item: with them you can wade through the flooded fords. The ford east of Amber Hollow leads to the Mistwater Marsh.'],i:0}};
-  }else if(c.id[0]==='m'&&c.id.length===2){drop(2,3,Math.max(8,lv+2));dropGold(c.x,c.y+8,90);dropMat(c.x,c.y+10,'ore',5);dropMat(c.x+6,c.y+10,'herb',4)}
-  else if(c.id==='dL'||c.id==='sL'){P.keys++;toast('You found a Small Key!','#ffe040');drop(1,2,Math.max(4,lv+1));dropGold(c.x,c.y+8,30)}
+  }else if(c.id==='boss3'){
+    drop(2,3,15);drop(1,3,15);dropGold(c.x,c.y+8,350);
+    for(const[m_,n_]of[['shell',8],['ore',14],['wood',10],['leather',8],['herb',10]])dropMat(c.x+rand(-12,12),c.y+rand(8,16),m_,n_);
+    flags.hook=true;
+    ui={mode:'dialog',d:{name:'Treasure',pages:['You obtained the GRAPPLE HOOK!','A gate item: it spans the gorge at the east edge of Mistwater Marsh. Rustpeak lies beyond.'],i:0}};
+  }else if(c.id==='boss4'){
+    drop(2,3,18);drop(1,4,18);dropGold(c.x,c.y+8,500);
+    for(const[m_,n_]of[['shell',10],['ore',20],['wood',12],['leather',10],['herb',12]])dropMat(c.x+rand(-12,12),c.y+rand(8,16),m_,n_);
+    flags.lantern=true;
+    ui={mode:'dialog',d:{name:'Treasure',pages:['You obtained the MINER\'S LANTERN!','A gate item: its light will pierce the darkness of Ghostbark Grove. That tale is for a future update.'],i:0}};
+  }else if(c.id==='boss6'){
+    drop(3,4,26);drop(2,3,26);dropGold(c.x,c.y+8,1500);
+    for(const[m_,n_]of[['shell',20],['ore',40],['wood',25],['leather',20],['herb',25]])dropMat(c.x+rand(-14,14),c.y+rand(8,18),m_,n_);
+    flags.won=true;
+    ui={mode:'dialog',d:{name:'The Heart of Spicewood',pages:['The Heartwood sighs, and its golden leaves drift down like embers.','The blight fades. Across the Spicewoods, from Hearthmoor to Rustpeak, the forest breathes again.','THE END. Thank you for playing Spicewood!','The world is yours to roam. Grow stronger, gather gear and explore every corner.'],i:0}};
+    try{parent.postMessage({type:'gameOver',score:P.lvl*1000+P.xp},'*')}catch(e){}
+  }else if(c.id==='boss5'){
+    drop(2,3,22);drop(1,4,22);dropGold(c.x,c.y+8,700);
+    for(const[m_,n_]of[['shell',12],['ore',24],['wood',14],['leather',12],['herb',14]])dropMat(c.x+rand(-12,12),c.y+rand(8,16),m_,n_);
+    flags.heartseed=true;
+    ui={mode:'dialog',d:{name:'Treasure',pages:['You obtained the HEARTSEED!','A gate item: it wakes the ancient tree at the Heart of Spicewood. That tale is for a future update.'],i:0}};
+  }else if(c.id.length===2&&'mrpq'.includes(c.id[0])){const tier={m:[8,90,5],r:[13,140,8],p:[18,200,10],q:[24,350,14]}[c.id[0]];drop(2,3,Math.max(tier[0],lv+2));dropGold(c.x,c.y+8,tier[1]);dropMat(c.x,c.y+10,'ore',tier[2]);dropMat(c.x+6,c.y+10,'herb',4)}
+  else if(c.id==='dL'||c.id==='sL'||c.id==='hL'||c.id==='xL'||c.id==='kL'){P.keys++;toast('You found a Small Key!','#ffe040');drop(1,2,Math.max(4,lv+1));dropGold(c.x,c.y+8,30)}
   else{drop(2,2,Math.max(4,lv+1));dropGold(c.x,c.y+8,40);dropMat(c.x,c.y+10,'ore',4);dropMat(c.x+6,c.y+10,'leather',2)}
   puff(c.x,c.y,10,'#ffd040',60);
 }
@@ -600,7 +635,7 @@ const AI={
     if(d>e.aggro*2.2)e.state='idle';
   },
   boss(e,dt,d,ux,uy,sp){
-    if(e.state==='dormant'){if(d<150){e.state='fight';e.cd=1.5;toast(`${e.variant==='mycelia'?'Mother Mycelia':'Old Barkfather'} awakens!`,'#ff8060');Snd.boom()}return}
+    if(e.state==='dormant'){if(d<150){e.state='fight';e.cd=1.5;toast(`${bossOf(e).name} awakens!`,'#ff8060');Snd.boom()}return}
     const enr=e.hp<e.maxHp*.5;
     if(e.tele){
       e.tele.t-=dt;
@@ -613,16 +648,18 @@ const AI={
     }
     if(d>28)move(e,ux*sp*(enr?1.4:1)*dt,uy*sp*(enr?1.4:1)*dt);
     if(e.cd<=0){
-      const my=e.variant==='mycelia';
-      const seq=my?(enr?['spores','rain','summon','slam','fan']:['spores','fan','summon','rain']):(enr?['slam','spores','summon','fan']:['slam','spores','fan']);
+      const v=e.variant,my=!!v;
+      const SEQ={mycelia:[['spores','fan','summon','rain'],['spores','rain','summon','slam','fan']],drowned:[['rain','fan','summon','spores'],['rain','spores','summon','slam','fan']],warden:[['slam','fan','rain','summon'],['slam','rain','fan','slam','summon']],king:[['fan','summon','slam','rain'],['spores','fan','summon','slam','rain']],heartwood:[['slam','fan','spores','rain','summon'],['spores','rain','slam','fan','summon','slam']]};
+      const seq=SEQ[v]?SEQ[v][enr?1:0]:(enr?['slam','spores','summon','fan']:['slam','spores','fan']);
       const a=seq[e.seq++%seq.length];
-      if(a==='slam')e.tele={x:e.x,y:e.y,r:my?60:54,t:.9,dur:.9};
+      if(a==='slam')e.tele={x:e.x,y:e.y,r:v==='heartwood'?72:v==='warden'?66:my?60:54,t:.9,dur:.9};
       else if(a==='rain'){for(let i=0;i<4;i++){const a2=rand(0,TAU),rr=i?rand(20,70):0;hazardAt(P.x+Math.cos(a2)*rr,P.y+Math.sin(a2)*rr,26,e.dmg*.9,.9)}e.cd=enr?1.8:2.4;Snd.spell()}
       else if(a==='spores'){const n=my?16:12;for(let i=0;i<n;i++)spore(e,i*TAU/n+e.rot,70,e.dmg*.5);e.rot+=.26;e.cd=enr?1.6:2.2;Snd.spell()}
       else if(a==='fan'){const b=Math.atan2(uy,ux);for(let i=-2;i<=2;i++)spore(e,b+i*.22,95,e.dmg*.5);e.cd=enr?1.6:2.2;Snd.spell()}
       else if(my){
-        if(E.filter(o=>!o.dead&&o.type==='shroom').length<6)for(let i=0;i<2;i++){const s2=makeEnemy('shroom',e.x+(i?-30:30),e.y+22,Math.max(1,e.lvl-3));s2.state='chase';if(boxFree(s2.x,s2.y,s2.hw,s2.hh))E.push(s2)}
-        e.cd=1.5;toast('Spore pods burst open!','#c070ff');
+        const sm={mycelia:['shroom',6,'Spore pods burst open!'],drowned:['bat',6,'The Matron calls the swarm!'],warden:['wolf',4,'Rust wolves leap from the shadows!'],king:['skeleton',5,'Skeletons claw out of the ground!'],heartwood:['beetle',6,'Heart-beetles swarm from the roots!']}[v];
+        if(E.filter(o=>!o.dead&&o.type===sm[0]).length<sm[1])for(let i=0;i<2;i++){const s2=makeEnemy(sm[0],e.x+(i?-30:30),e.y+22,Math.max(1,e.lvl-3));s2.state='chase';if(boxFree(s2.x,s2.y,s2.hw,s2.hh))E.push(s2)}
+        e.cd=1.5;toast(sm[2],'#c070ff');
       }else{
         if(E.filter(o=>!o.dead&&o.type==='beetle').length<5)for(let i=0;i<2;i++){const s=makeEnemy('beetle',e.x+(i?-26:26),e.y+20,Math.max(1,e.lvl-3));s.state='chase';if(boxFree(s.x,s.y,s.hw,s.hh))E.push(s)}
         e.cd=1.5;toast('Beetles crawl out of the bark!','#ffb070');
@@ -630,6 +667,7 @@ const AI={
     }
   }
 };
+AI.skeleton=AI.beetle;AI.ghost=AI.bat;
 function hazardAt(x,y,r,dmg,delay){
   mark(x,y,r,delay);
   later(delay,()=>{fx({k:'ring',x,y,r0:4,r1:r,t:0,dur:.3,c:'#c070ff'});puff(x,y,10,'#c070ff',60);Snd.boom();if(Math.hypot(P.x-x,P.y-y)<r)hurtPlayer(dmg,x,y)});
@@ -696,7 +734,14 @@ function interact(it){
     else if(flags.stage===4)say(n.name,['The thorn vines at the east edge of Ember Glade will yield to your Thornsickle. Beyond them lies Amber Hollow.']);
     else if(flags.stage===5)say(n.name,['Amber Hollow is thick with spores. The Spore Warren lies in the far north. Mother Mycelia rules there. Take care.']);
     else if(flags.stage===6)say(n.name,['The Wooden Boots! With them you can wade the flooded ford east of Amber Hollow, into the Mistwater Marsh.']);
-    else say(n.name,['Mistwater Marsh... Rustpeak rises beyond it, but we will need a hook for that gorge. That is a tale for the next update. Until then, grow stronger!']);
+    else if(flags.stage===7)say(n.name,['Mistwater Marsh... Rustpeak rises beyond it, but a gorge cuts it off. We would need a hook to cross. Old tales speak of a Sunken Shrine in the marsh, guarded by the Drowned Matron.']);
+    else if(flags.stage===8)say(n.name,['The Grapple Hook! With it you can cross the gorge at the east edge of the marsh. Rustpeak awaits.']);
+    else if(flags.stage===9)say(n.name,['Rustpeak is a hard land of rust wolves and brutes. The old mine lies in the north-east. Its warden has slept there for ages.']);
+    else if(flags.stage===10)say(n.name,['The Rust Warden is scrap, and you carry the Miner\'s Lantern! A dark tunnel at the east edge of Rustpeak leads to Ghostbark Grove. Beware the dead.']);
+    else if(flags.stage===11)say(n.name,['Ghostbark Grove... the Hollow King sleeps in the crypt at its north-eastern end. Bring him down.']);
+    else if(flags.stage===12)say(n.name,['The Hollow King is dust, and the Heartseed is yours! A gate of living roots at the east edge of Ghostbark Grove will open for it. Beyond lies the Heart of Spicewood.']);
+    else if(flags.stage===13)say(n.name,['The old tree at the Heart of Spicewood is the source of the blight. End it, hero. All of us are counting on you.']);
+    else say(n.name,['You saved the Spicewoods! The village will never forget your name. Keep exploring and grow stronger, there is always more to find.']);
   }else if(n.id==='smith'){
     say(n.name,[baseLv('smithy')>1?'Back at the anvil! What can I do for you?':'My forge is ready. Bring me ore, leather and wood and I will make you something good.'],()=>{ui=smithMenu()});
   }else if(n.id==='alch'){
@@ -765,7 +810,7 @@ function updatePlay(dt){
 
   updateAmbient(dt);
   Music.play(E.some(e=>e.type==='boss'&&e.state==='fight'&&!e.dead)?'boss':ZONEMUSIC[M.id]);
-  if(M.id==='spore')updateBlocks(dt);
+  if(M.id==='spore'||M.id==='mine'||M.id==='crypt')updateBlocks(dt);
   for(const e of E)updateEnemy(e,dt);
   E=E.filter(e=>!e.dead);
   separate();
@@ -775,7 +820,9 @@ function updatePlay(dt){
   if(M.gates)tryKeyDoor();
   // warps
   if(fade.dir===0)for(const w of M.warps){
-    if(P.x>w.x&&P.x<w.x+w.w&&P.y>w.y&&P.y<w.y+w.h){startFade(()=>loadMap(w.to,w.tx,w.ty));break}
+    if(P.x>w.x&&P.x<w.x+w.w&&P.y>w.y&&P.y<w.y+w.h){
+      if(w.need&&!flags[w.need]){P.x=w.x-4;if(!P.needMsg||P.needMsg<time-2.5){P.needMsg=time;toast(w.needText,'#ff8070')}break}
+      startFade(()=>loadMap(w.to,w.tx,w.ty));break}
   }
   // camera
   const tx=M.w*TS<=W?(M.w*TS-W)/2:clamp(P.x-W/2,0,M.w*TS-W),ty=M.h*TS<=H?(M.h*TS-H)/2:clamp(P.y-H/2,0,M.h*TS-H);
@@ -1055,7 +1102,7 @@ function drawChest(c){
   else{cx.fillStyle='#a87a3a';cx.fillRect(x-7,y-5,14,4);cx.fillStyle='#ffd040';cx.fillRect(x-1,y-2,3,3)}
 }
 function drawEnemy(e){
-  const k=e.variant==='mycelia'?'boss2':e.type,base=Spr.enemy[k],x=Math.round(e.x),y=Math.round(e.y);
+  const k=BOSSSPR[e.variant]||e.type,base=Spr.enemy[k],x=Math.round(e.x),y=Math.round(e.y);
   const w=base.width,h=base.height;
   shadow(x,y+e.hh,Math.max(5,w/2));
   let spr=e.flash>0?Spr.flash[k]:(e.elite?Spr.elite[k]:base);
@@ -1142,7 +1189,7 @@ function drawHUD(){
   // boss bar
   for(const e of E)if(e.type==='boss'&&e.state!=='dormant'){
     bar(W/2-100,12,200,8,e.hp/e.maxHp,'#b82020');
-    text(e.variant==='mycelia'?'Mother Mycelia':'Old Barkfather',W/2,2,'#ffd0a0',8,'center',true);
+    text(bossOf(e).name,W/2,2,'#ffd0a0',8,'center',true);
   }
   // banner and toasts
   if(banner.t>0){cx.globalAlpha=clamp(banner.t,0,1);text(banner.text,W/2,56,'#ffe9a0',18,'center',true);cx.globalAlpha=1}
@@ -1158,13 +1205,14 @@ function drawHUD(){
   }
 }
 function drawDark(){
-  if(!M.dark)return;
-  if(!drawDark.c){
+  if(!M.dark&&!M.night)return;
+  const lk=flags.lantern?'c2':'c';
+  if(!drawDark[lk]){
     const c=document.createElement('canvas');c.width=W*2;c.height=H*2;const g=c.getContext('2d');
-    const gr=g.createRadialGradient(W,H,40,W,H,230);gr.addColorStop(0,'rgba(8,4,2,0)');gr.addColorStop(.55,'rgba(8,4,2,.55)');gr.addColorStop(1,'rgba(8,4,2,.93)');
-    g.fillStyle=gr;g.fillRect(0,0,W*2,H*2);drawDark.c=c;
+    const gr=flags.lantern?g.createRadialGradient(W,H,80,W,H,300):g.createRadialGradient(W,H,40,W,H,230);gr.addColorStop(0,'rgba(8,4,2,0)');gr.addColorStop(.55,'rgba(8,4,2,.55)');gr.addColorStop(1,'rgba(8,4,2,.93)');
+    g.fillStyle=gr;g.fillRect(0,0,W*2,H*2);drawDark[lk]=c;
   }
-  cx.drawImage(drawDark.c,Math.round(P.x-cam.x-W),Math.round(P.y-cam.y-H));
+  cx.drawImage(drawDark[lk],Math.round(P.x-cam.x-W),Math.round(P.y-cam.y-H));
 }
 
 
@@ -1203,10 +1251,10 @@ function tryKeyDoor(){
 }
 function hitOrbs(x,y,r){
   for(const p of M.props){
-    if(p.k!=='orb'||flags.dun.orb)continue;
+    if(p.k!=='orb'||flags.dun[p.flag||'orb'])continue;
     const px=(p.tx+.5)*TS,py=(p.ty+.5)*TS;
     if(Math.hypot(px-x,py-y)<r){
-      flags.dun.orb=true;const g=M.gates.find(g=>g.id==='orbW');if(g)setGate(g,true);
+      flags.dun[p.flag||'orb']=true;const g=M.gates.find(g=>g.kind==='orb'&&(g.flag||'orb')===(p.flag||'orb'));if(g)setGate(g,true);
       toast('Click! A distant gate swings open.','#8fd0ff');Snd.open();shake=3;puff(px,py,16,'#8fd0ff',80);
     }
   }
@@ -1233,10 +1281,12 @@ function updateBlocks(dt){
       }
     }
   }
-  for(const pl of M.plates){
-    const on=M.props.some(p=>p.k==='block'&&p.tx===pl.tx&&p.ty===pl.ty);pl.on=on;
-    if(on&&!flags.dun[pl.flag]){
-      flags.dun[pl.flag]=true;const g=M.gates.find(g=>g.id===pl.gate);if(g)setGate(g,true);
+  for(const pl of M.plates)pl.on=M.props.some(p=>p.k==='block'&&p.tx===pl.tx&&p.ty===pl.ty);
+  for(const g of M.gates){
+    if(g.kind!=='plate'||flags.dun[g.flag])continue;
+    const ps=M.plates.filter(q=>q.gate===g.id);
+    if(ps.length&&ps.every(q=>q.on)){
+      flags.dun[g.flag]=true;setGate(g,true);
       toast('Click! A heavy slab slides away.','#8fd0ff');Snd.open();shake=3;
     }
   }
@@ -1269,7 +1319,7 @@ function drawGates(){
   }
 }
 function drawDarkLights(){
-  if(!M.dark)return;
+  if(!M.dark&&!M.night)return;
   if(!drawDarkLights.h){
     const gl=document.createElement('canvas');gl.width=gl.height=120;const q=gl.getContext('2d');
     const rg=q.createRadialGradient(60,60,2,60,60,60);rg.addColorStop(0,'rgba(255,170,80,.4)');rg.addColorStop(1,'rgba(255,170,80,0)');
@@ -1298,6 +1348,7 @@ function drawProp(p){
     case'well':shadow(x+8,y+14,8);R_('#4a4640',1,6,14,9);R_('#8a867e',2,6,12,8);R_('#a8a49c',3,7,4,2);R_('#1a2a3a',4,6,8,4);R_('#5a3a1c',1,0,2,8);R_('#5a3a1c',13,0,2,8);R_('#7a4a22',0,0,16,3);R_('#b8602a',0,-1,16,2);break;
     case'anvil':shadow(x+8,y+14,6);R_('#2a2a30',3,8,10,3);R_('#5a5a64',2,6,12,3);R_('#8a8a96',3,6,9,1);R_('#2a2a30',5,11,6,4);{const f=.5+.5*Math.sin(t*9);R_('#ff7a20',12,11,3,3);R_('#ffd060',13,12,1,1);cx.globalAlpha=f*.6;R_('#ffb040',11,10,5,5);cx.globalAlpha=1}break;
     case'pot':shadow(x+8,y+14,6);R_('#1a1a20',3,6,10,9);R_('#3a3a44',4,5,8,9);R_('#5ab04a',4,5,8,2);{const b=Math.sin(t*5)*1.5;R_('#9aff7a',6,3+b,2,2);R_('#9aff7a',9,2-b,1,1)}break;
+    case'grave':shadow(x+8,y+14,6);R_('#3a3a40',3,4,10,11);R_('#7a7a84',4,3,8,11);R_('#9a9aa4',5,4,3,2);R_('#4a4a54',7,6,2,5);R_('#4a4a54',5,8,6,1);break;
     case'lantern':shadow(x+8,y+14,4);R_('#2a1808',7,5,2,10);R_('#2a1808',4,2,8,2);R_('#ffd060',5,3,6,4);R_('#fff0a0',6,4,4,2);R_('#2a1808',4,7,8,1);break;
     case'stall':
       shadow(x+16,y+14,14);R_('#4a2c10',1,8,30,7);R_('#8a5a22',1,7,30,6);
@@ -1309,7 +1360,7 @@ function drawProp(p){
     case'plate':{const on=M.plates.some(q=>q.tx===p.tx&&q.ty===p.ty&&q.on)||flags.dun.plate1;R_('#2a2620',1,1,14,14);R_('#4a463e',2,2,12,12);R_(on?'#8fd0ff':'#6a665c',5,5,6,6);R_(on?'#d8f4ff':'#8a867a',6,6,2,2);break}
     case'glowcap':{const g=.6+.4*Math.sin(t*3+p.tx*2);R_('#2a4a5a',7,9,2,5);R_('#2a4a5a',3,12,1,3);R_('#2a4a5a',12,11,1,4);cx.globalAlpha=g;R_('#40e0d0',5,6,6,4);R_('#40e0d0',1,10,5,3);R_('#40e0d0',10,9,5,3);R_('#c8fff4',6,7,2,1);cx.globalAlpha=1;break}
     case'brazier':shadow(x+8,y+14,6);R_('#2a2a30',4,9,8,6);R_('#4a4a54',3,8,10,3);{const f=Math.sin(t*12+p.tx)*1.2;R_('#d03a10',5,3-f,6,6+f);R_('#ff9a2a',6,2,4,6);R_('#ffe070',7,5,2,3)}break;
-    case'orb':shadow(x+8,y+14,6);R_('#2a2a30',4,10,8,5);R_('#4a4a54',5,9,6,2);{const on=flags.dun.orb,b=Math.sin(t*3)*1;R_(on?'#3a5a3a':'#2a5a9a',4,2+b,8,8);R_(on?'#6a9a6a':'#6ab0ff',5,3+b,6,6);R_(on?'#a8d0a8':'#c8e8ff',6,4+b,2,2)}break;
+    case'orb':shadow(x+8,y+14,6);R_('#2a2a30',4,10,8,5);R_('#4a4a54',5,9,6,2);{const on=flags.dun[p.flag||'orb'],b=Math.sin(t*3)*1;R_(on?'#3a5a3a':'#2a5a9a',4,2+b,8,8);R_(on?'#6a9a6a':'#6ab0ff',5,3+b,6,6);R_(on?'#a8d0a8':'#c8e8ff',6,4+b,2,2)}break;
     case'fire':{
       shadow(x+8,y+14,8);
       R_('#6a6660',0,9,16,6);R_('#4a4640',1,10,14,4);
@@ -1330,7 +1381,7 @@ function propLights(){
     else if(p.k==='pot')L.push({x,y,r:26,a:.4});
     else if(p.k==='glowcap')L.push({x,y,r:36,a:.55,c:'cyan'});
     else if(p.k==='brazier')L.push({x,y:y-3,r:80,a:.9*f});
-    else if(p.k==='orb'&&!flags.dun.orb)L.push({x,y:y-3,r:34,a:.6});
+    else if(p.k==='orb'&&!flags.dun[p.flag||'orb'])L.push({x,y:y-3,r:34,a:.6});
   }
   return L;
 }

@@ -1,6 +1,6 @@
 'use strict';
-const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR:9,DWALL:10,VINE:11,LOCK:12,SHROOM:13,FENCE:14,OAK:15,LONE:16,BLOCK:17,FLOWER:18,CROP:19,BARRIER:24,SHALLOW:25,DBLOCK:26};
-const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,0,1];
+const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR:9,DWALL:10,VINE:11,LOCK:12,SHROOM:13,FENCE:14,OAK:15,LONE:16,BLOCK:17,FLOWER:18,CROP:19,BARRIER:24,SHALLOW:25,DBLOCK:26,GORGE:27,BRIDGE:28,SCREE:29,CRAG:30,MOSS:31,GTREE:32};
+const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,0,1,1,0,0,1,0,1];
 
 function mk(id,name,w,h,fill){
   return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],plates:[],gates:[],rooms:[],mist:false,dark:false};
@@ -50,7 +50,7 @@ function scatter(m,r,n,k,ok,avoid,deco){
   let placed=0,guard=0;
   while(placed<n&&guard++<600){
     const x=3+Math.floor(r()*(m.w-6)),y=3+Math.floor(r()*(m.h-6)),t=gt(m,x,y);
-    if(t!==T.GRASS&&t!==T.LEAF)continue;
+    if(t!==T.GRASS&&t!==T.LEAF&&t!==T.SCREE&&t!==T.MOSS)continue;
     if(!ok(x,y)||(avoid&&avoid(x,y)))continue;
     if(deco)addDeco(m,k,x,y);else addProp(m,k,x,y);placed++;
   }
@@ -354,7 +354,13 @@ function buildMarsh(){
   }
   rectT(m,50,0,4,m.h,T.ROCK);
   rectT(m,0,0,m.w,1,T.WATER);
+  rectT(m,48,6,2,5,T.GRASS);   // landing before the gorge
+  rectT(m,50,7,3,3,T.GORGE);   // needs the Grapple Hook (turns into a rope bridge)
+  rectT(m,53,7,1,3,T.PATH);
+  st(m,33,10,T.OAK);st(m,34,10,T.OAK);   // Sunken Shrine
   m.warps.push({x:0,y:14*TS,w:TS,h:3*TS,to:'amber',tx:51*TS,ty:28.5*TS});
+  m.warps.push({x:33*TS,y:10*TS,w:2*TS,h:TS,to:'shrine',tx:22*TS+8,ty:31*TS});
+  m.warps.push({x:53*TS,y:7*TS,w:TS,h:3*TS,to:'rust',tx:3*TS,ty:19.5*TS});
   m.chests.push({id:'m1',x:44*TS+8,y:7*TS+8},{id:'m2',x:44*TS+8,y:25*TS+8},{id:'m3',x:20*TS+8,y:8*TS+8});
   const c=t=>t*TS+8;
   const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
@@ -363,15 +369,240 @@ function buildMarsh(){
   G('brute',32,14,9,true);G('bat',34,16,9);G('bat',31,17,9);G('shroom',35,14,9);G('wolf',33,12,9);
   G('brute',43,23,9);G('shroom',45,25,9);
   G('bat',43,8,9);G('bat',46,9,9);
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-9,y-15)<2;
+  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-9,y-15)<2||Math.hypot(x-33.5,y-10)<3||(x>=47&&y>=5&&y<=11);
   scatter(m,r,10,'herb',(x,y)=>true,near,true);
   scatter(m,r,8,'cutbush',(x,y)=>true,near);
   scatter(m,r,6,'ore',(x,y)=>true,near);
   scatter(m,r,6,'logs',(x,y)=>true,near);
   scatter(m,r,12,'glowcap',(x,y)=>true,near,true);
   addProp(m,'sign',7,14,{text:'Mistwater Marsh. Solid ground is rare here. Follow the shallow fords from island to island.'});
-  addProp(m,'sign',47,9,{text:'A sheer gorge cuts off the east. Rustpeak rises beyond it, but you will need a hook to cross... (coming in a future update)'});
+  addProp(m,'sign',47,9,{text:'A sheer gorge cuts off the east, and the old bridge is long gone. Rustpeak rises beyond it. A grapple hook could span the gap. They say one lies hidden in the Sunken Shrine...'});
+  addProp(m,'sign',31,12,{text:'The Sunken Shrine. Strike the glowing orb with a weapon or arrow to raise the water gate. A small key opens the last door.'});
   m.start={x:4*TS,y:15*TS};
   return m;
 }
-const MAPS={village:buildVillage,glade:buildGlade,dungeon:buildDungeon,amber:buildAmber,spore:buildSpore,marsh:buildMarsh};
+// ================= shared layout for the later dungeons (entrance, hall, west/east rooms, north corridor, boss room) =================
+function laterDungeon(id,name,sfx){
+  const m=mk(id,name,44,36,T.DWALL);
+  m.dark=true;
+  const room=(x1,y1,x2,y2)=>rectT(m,x1,y1,x2-x1+1,y2-y1+1,T.DFLOOR);
+  room(18,28,26,33);room(21,25,23,27);room(14,17,30,24);room(12,19,13,21);room(3,16,11,24);
+  room(31,19,32,21);room(33,16,41,24);room(21,11,23,16);room(12,2,32,10);
+  const gate=(gid,kind,rm,x,y,w,h,extra)=>{const g=Object.assign({id:gid,kind,room:rm,open:kind==='room',tiles:[]},extra||{});for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g.tiles.push([i,j]);m.gates.push(g)};
+  gate('hallS','room','hall'+sfx,21,25,3,1);gate('hallW','room','hall'+sfx,13,19,1,3);gate('hallE','room','hall'+sfx,31,19,1,3);
+  gate('eastW','room','east'+sfx,32,19,1,3);
+  m.rooms.push({id:'hall'+sfx,x1:14,y1:17,x2:30,y2:24,gates:['hallS','hallW','hallE'],name:'The hall'});
+  m.rooms.push({id:'east'+sfx,x1:33,y1:16,x2:41,y2:24,gates:['eastW'],name:'The east chamber'});
+  gate('keyG','key',null,21,12,3,1,{flagKey:'keydoor'+sfx});
+  for(const[x,y]of[[14,17],[30,17],[14,24],[30,24],[12,2],[32,2],[12,10],[32,10]])addProp(m,'brazier',x,y);
+  for(const[x,y]of[[19,29],[25,29],[19,32],[25,32],[10,24],[40,24]])addProp(m,'clay',x,y);
+  m.start={x:22*TS+8,y:31*TS};
+  return m;
+}
+
+// ================= The Sunken Shrine (dungeon 3, Mistwater Marsh: orb switch, small key, The Drowned Matron) =================
+function buildShrine(){
+  const m=laterDungeon('shrine','The Sunken Shrine','3');
+  for(const[x,y]of[[17,20],[27,20],[7,19],[7,22]])st(m,x,y,T.DWALL);
+  m.gates.push({id:'orbG',kind:'orb',flag:'orb3',room:null,open:false,tiles:[[21,15],[22,15],[23,15]]});
+  m.props.push({k:'orb',flag:'orb3',tx:37,ty:16,w:1});st(m,37,16,T.DBLOCK);
+  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'marsh',tx:34*TS,ty:13*TS});
+  m.chests.push({id:'hL',x:4*TS+8,y:17*TS+8},{id:'hR',x:40*TS+8,y:23*TS+8});
+  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9]])addProp(m,'ore',x,y);
+  for(const[x,y]of[[16,19],[28,19],[6,17],[10,21],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28],[8,20],[36,20]])addDeco(m,'glowcap',x,y);
+  addProp(m,'sign',20,30,{text:'The Sunken Shrine. Something old sleeps here, wrapped in rope and iron. Strike the glowing orb in the east chamber, and find the small key in the west.'});
+  const c=t=>t*TS+8;
+  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
+  S('bat',16,19,9,false,'hall3');S('bat',28,22,9,false,'hall3');S('bat',20,22,9,false,'hall3');S('shroom',16,23,9,false,'hall3');S('wolf',28,18,9,false,'hall3');S('brute',22,20,9,false,'hall3');
+  S('brute',35,18,10,false,'east3');S('wolf',38,22,10,false,'east3');S('bat',36,20,10,false,'east3');S('bat',34,23,10,false,'east3');S('brute',39,17,10,true,'east3');
+  S('shroom',5,18,9);S('shroom',9,23,9);
+  m.spawns.push({type:'boss',variant:'drowned',x:22*TS+8,y:5*TS,lvl:14});
+  return m;
+}
+
+// ================= Rustpeak (rocky highlands: wolves, brutes, the Rustpeak Mine) =================
+function buildRust(){
+  const m=mk('rust','Rustpeak',60,40,T.SCREE),r=seeded(47);
+  forest(m,r,.6);
+  for(let i=0;i<m.t.length;i++)if(m.t[i]===T.TREE)m.t[i]=T.CRAG;
+  const ground=()=>T.SCREE;
+  const PATHS=[
+    [[0,19],[8,19],[16,18],[26,20],[36,18],[44,14],[50,8],[50,3]],
+    [[26,20],[28,30],[36,34]],
+    [[36,18],[46,24],[54,28]],
+    [[16,18],[18,8],[24,5]]
+  ];
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.CRAG));
+  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.CRAG);
+  clear(9,19,4.2);clear(26,20,5.2);clear(36,18,5.4);clear(50,8,4.6);clear(36,34,4);clear(54,28,3.6);clear(24,5,3.6);
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
+  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
+    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=18&&y<=21))st(m,x,y,T.CRAG)}
+  }
+  rectT(m,0,18,3,4,T.PATH);
+  rectT(m,56,27,4,3,T.PATH);   // dark tunnel to Ghostbark Grove (needs the Miner's Lantern)
+  st(m,49,2,T.OAK);st(m,50,2,T.OAK);
+  m.warps.push({x:0,y:18*TS,w:TS,h:4*TS,to:'marsh',tx:49*TS,ty:8.5*TS});
+  m.warps.push({x:49*TS,y:2*TS,w:2*TS,h:TS,to:'mine',tx:22*TS+8,ty:31*TS});
+  m.warps.push({x:59*TS,y:27*TS,w:TS,h:3*TS,to:'grove',tx:3*TS,ty:20.5*TS,need:'lantern',needText:'A black tunnel. Without a light you cannot go on.'});
+  m.chests.push({id:'r1',x:36*TS+8,y:35*TS+8},{id:'r2',x:55*TS+8,y:29*TS+8},{id:'r3',x:24*TS+8,y:4*TS+8});
+  const c=t=>t*TS+8;
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
+  G('wolf',14,18,10);G('wolf',16,20,10);G('beetle',18,17,10);
+  G('brute',26,20,11,true);G('wolf',24,22,11);G('wolf',29,19,11);G('bat',27,17,11);
+  G('bat',24,6,11);G('bat',22,4,11);G('beetle',26,5,11);
+  G('brute',28,30,11);G('beetle',30,31,11);G('beetle',27,32,11);G('brute',36,33,12);G('wolf',34,35,12);
+  G('brute',36,18,12,true);G('wolf',34,16,12);G('wolf',38,20,12);G('bat',37,16,12);G('beetle',35,20,12);
+  G('brute',54,27,12);G('wolf',52,27,12);G('bat',55,26,12);
+  G('brute',49,6,13);G('wolf',52,9,13);G('wolf',47,8,13);
+  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-19.5)<4||Math.hypot(x-49.5,y-2)<4||(x>=55&&y>=25&&y<=31);
+  scatter(m,r,30,'ore',(x,y)=>true,near);
+  scatter(m,r,14,'clay',(x,y)=>true,near);
+  scatter(m,r,10,'logs',(x,y)=>true,near);
+  scatter(m,r,8,'herb',(x,y)=>true,near,true);
+  addProp(m,'sign',5,20,{text:'Rustpeak. Rust wolves hunt the ridges, and the old mine lies far to the north-east. Keep to the road.'});
+  addProp(m,'sign',56,26,{text:'A black tunnel leads east into Ghostbark Grove. Only a miner\'s lantern can pierce that darkness.'});
+  addProp(m,'sign',47,4,{text:'The Rustpeak Mine. Two stone blocks, two pressure plates. Push, never pull. If a block gets stuck, leave and come back in.'});
+  m.start={x:3*TS,y:19.5*TS};
+  return m;
+}
+
+// ================= The Rustpeak Mine (dungeon 4: two blocks on two plates, small key, The Rust Warden) =================
+function buildMine(){
+  const m=laterDungeon('mine','The Rustpeak Mine','4');
+  for(const[x,y]of[[17,20],[27,20],[7,20],[11,24]])st(m,x,y,T.DWALL);
+  m.gates.push({id:'plateG',kind:'plate',flag:'plate4',room:null,open:false,tiles:[[21,15],[22,15],[23,15]]});
+  for(const[x,y]of[[9,22],[9,18]]){m.plates.push({tx:x,ty:y,gate:'plateG',flag:'plate4'});m.props.push({k:'plate',tx:x,ty:y,w:1,deco:true})}
+  addProp(m,'block',5,19);addProp(m,'block',5,22);
+  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'rust',tx:50*TS,ty:4.5*TS});
+  m.chests.push({id:'xL',x:40*TS+8,y:17*TS+8},{id:'xR',x:4*TS+8,y:17*TS+8});
+  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9],[36,17],[19,19],[25,19]])addProp(m,'ore',x,y);
+  for(const[x,y]of[[16,19],[28,19],[10,18],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
+  addProp(m,'sign',20,30,{text:'The Rustpeak Mine. Two blocks, two plates. Walk into a block to push it, but it can never be pulled back. Leave and re-enter if one gets stuck.'});
+  const c=t=>t*TS+8;
+  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
+  S('wolf',16,19,11,false,'hall4');S('wolf',28,22,11,false,'hall4');S('beetle',20,22,11,false,'hall4');S('beetle',16,23,11,false,'hall4');S('bat',28,18,11,false,'hall4');S('brute',22,20,11,false,'hall4');
+  S('brute',35,18,12,false,'east4');S('brute',38,22,12,false,'east4');S('wolf',36,20,12,false,'east4');S('wolf',34,23,12,false,'east4');S('beetle',39,17,12,true,'east4');
+  S('beetle',7,17,11);S('bat',10,23,11);
+  m.spawns.push({type:'boss',variant:'warden',x:22*TS+8,y:5*TS,lvl:17});
+  return m;
+}
+// ================= Ghostbark Grove (night forest: skeletons, ghosts, graves, the Ghostbark Crypt) =================
+function buildGrove(){
+  const m=mk('grove','Ghostbark Grove',56,40,T.MOSS),r=seeded(59);
+  m.mist=true;m.night=true;
+  forest(m,r,.6);
+  for(let i=0;i<m.t.length;i++)if(m.t[i]===T.TREE)m.t[i]=T.GTREE;
+  const ground=()=>T.MOSS;
+  const PATHS=[
+    [[0,20],[8,20],[16,18],[24,20],[32,16],[40,12],[44,6],[44,3]],
+    [[24,20],[26,30],[34,34]],
+    [[32,16],[42,22],[50,26]],
+    [[16,18],[14,8],[20,5]]
+  ];
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.GTREE));
+  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.GTREE);
+  clear(8,20,4.2);clear(24,20,5);clear(32,16,5);clear(44,6,4.4);clear(34,34,4);clear(50,26,3.6);clear(20,5,3.6);
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
+  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
+    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=19&&y<=22))st(m,x,y,T.GTREE)}
+  }
+  rectT(m,0,19,3,4,T.PATH);
+  rectT(m,52,25,4,3,T.PATH);   // sealed root-gate to the Heart of Spicewood (needs the Heartseed)
+  st(m,43,2,T.OAK);st(m,44,2,T.OAK);
+  m.warps.push({x:0,y:19*TS,w:TS,h:4*TS,to:'rust',tx:56*TS,ty:28.5*TS});
+  m.warps.push({x:43*TS,y:2*TS,w:2*TS,h:TS,to:'crypt',tx:22*TS+8,ty:31*TS});
+  m.warps.push({x:55*TS,y:25*TS,w:TS,h:3*TS,to:'heart',tx:3*TS,ty:18.5*TS,need:'heartseed',needText:'A great sealed root-gate. It hungers for a Heartseed.'});
+  m.chests.push({id:'p1',x:34*TS+8,y:35*TS+8},{id:'p2',x:51*TS+8,y:27*TS+8},{id:'p3',x:20*TS+8,y:4*TS+8});
+  const c=t=>t*TS+8;
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
+  G('ghost',12,19,13);G('skeleton',14,21,13);G('skeleton',12,22,13);
+  G('skeleton',24,20,14,true);G('skeleton',22,22,14);G('ghost',26,18,14);G('ghost',27,22,14);
+  G('ghost',20,6,14);G('ghost',22,4,14);G('skeleton',18,5,14);
+  G('skeleton',26,30,14);G('skeleton',34,33,15);G('ghost',36,35,15);G('skeleton',32,35,15);
+  G('skeleton',32,16,15,true);G('ghost',30,14,15);G('ghost',34,18,15);G('shroom',31,18,15);
+  G('skeleton',50,26,15);G('ghost',52,25,15);G('ghost',49,28,15);
+  G('skeleton',44,6,16);G('skeleton',42,8,16);G('ghost',46,5,16);G('ghost',45,8,16);
+  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-20.5)<4||Math.hypot(x-43.5,y-2)<4||(x>=51&&y>=23&&y<=29&&x!==51);
+  scatter(m,r,34,'grave',(x,y)=>true,near);
+  scatter(m,r,10,'lantern',(x,y)=>true,near);
+  scatter(m,r,8,'ore',(x,y)=>true,near);
+  scatter(m,r,26,'glowcap',(x,y)=>true,near,true);
+  scatter(m,r,8,'herb',(x,y)=>true,near,true);
+  addProp(m,'sign',4,21,{text:'Ghostbark Grove. The trees here are pale and the dead do not rest. The Ghostbark Crypt lies far to the north-east.'});
+  addProp(m,'sign',52,23,{text:'A gate of living roots seals the east. Beyond it beats the Heart of Spicewood. Only a Heartseed can open it.'});
+  addProp(m,'sign',41,4,{text:'The Ghostbark Crypt. A block, a plate, a glowing orb and a small key. The Hollow King waits below.'});
+  m.start={x:3*TS,y:20.5*TS};
+  return m;
+}
+
+// ================= The Ghostbark Crypt (dungeon 5: block and plate, orb, small key, The Hollow King) =================
+function buildCrypt(){
+  const m=laterDungeon('crypt','The Ghostbark Crypt','5');
+  for(const[x,y]of[[17,20],[27,20],[7,20],[11,24]])st(m,x,y,T.DWALL);
+  m.gates.push({id:'plateG',kind:'plate',flag:'plate5',room:null,open:false,tiles:[[21,15],[22,15],[23,15]]});
+  m.gates.push({id:'orbG',kind:'orb',flag:'orb5',room:null,open:false,tiles:[[21,13],[22,13],[23,13]]});
+  m.plates.push({tx:9,ty:22,gate:'plateG',flag:'plate5'});m.props.push({k:'plate',tx:9,ty:22,w:1,deco:true});
+  addProp(m,'block',5,19);
+  m.props.push({k:'orb',flag:'orb5',tx:37,ty:16,w:1});st(m,37,16,T.DBLOCK);
+  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'grove',tx:44*TS,ty:4.5*TS});
+  m.chests.push({id:'kL',x:40*TS+8,y:23*TS+8},{id:'kR',x:4*TS+8,y:17*TS+8});
+  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9]])addProp(m,'grave',x,y);
+  for(const[x,y]of[[16,19],[28,19],[10,18],[34,17],[38,21],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
+  addProp(m,'sign',20,30,{text:'The Ghostbark Crypt. Push the block onto the plate, strike the orb, and use the small key. The Hollow King does not forgive trespassers.'});
+  const c=t=>t*TS+8;
+  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
+  S('skeleton',16,19,14,false,'hall5');S('skeleton',28,22,14,false,'hall5');S('ghost',20,22,14,false,'hall5');S('ghost',16,23,14,false,'hall5');S('skeleton',28,18,14,false,'hall5');S('skeleton',22,20,14,true,'hall5');
+  S('skeleton',35,18,15,false,'east5');S('skeleton',38,22,15,false,'east5');S('ghost',36,20,15,false,'east5');S('ghost',34,23,15,false,'east5');S('skeleton',39,17,15,true,'east5');
+  S('ghost',7,17,14);S('skeleton',10,23,14);
+  m.spawns.push({type:'boss',variant:'king',x:22*TS+8,y:5*TS,lvl:20});
+  return m;
+}
+// ================= Heart of Spicewood (finale: the ancient tree and its guardians) =================
+function buildHeart(){
+  const m=mk('heart','Heart of Spicewood',52,38,T.GRASS),r=seeded(83);
+  m.mist=true;
+  for(let i=0;i<m.t.length;i++)if(r()<.45)m.t[i]=T.LEAF;
+  forest(m,r,.58);
+  const ground=()=>r()<.5?T.LEAF:T.GRASS;
+  const PATHS=[
+    [[0,18],[10,18],[18,22],[26,20],[26,14],[26,9]],
+    [[18,22],[12,30],[8,32]],
+    [[26,20],[38,24],[44,28]],
+    [[10,18],[10,8],[14,5]]
+  ];
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.TREE));
+  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.TREE);
+  clear(5,18,4);clear(18,22,4.4);clear(26,19,4.4);clear(26,12,4);clear(8,32,3.6);clear(44,28,3.6);clear(14,5,3.6);
+  clear(26,7,8);   // the Heartwood's arena
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
+  disc(m,26,8,1.6,T.PATH);
+  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
+    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=17&&y<=20))st(m,x,y,T.TREE)}
+  }
+  rectT(m,0,17,3,4,T.PATH);
+  m.warps.push({x:0,y:17*TS,w:TS,h:4*TS,to:'grove',tx:52*TS,ty:26.5*TS});
+  m.chests.push({id:'q1',x:8*TS+8,y:33*TS+8},{id:'q2',x:45*TS+8,y:29*TS+8},{id:'q3',x:14*TS+8,y:4*TS+8});
+  const c=t=>t*TS+8;
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
+  G('skeleton',9,18,15);G('ghost',12,17,15);G('skeleton',11,20,15);
+  G('brute',18,22,16,true);G('wolf',16,24,16);G('wolf',20,20,16);G('ghost',19,24,16);
+  G('skeleton',26,19,16,true);G('ghost',24,21,16);G('ghost',28,18,16);G('bat',26,22,16);
+  G('brute',25,13,17);G('brute',28,12,17);G('wolf',24,15,17);
+  G('skeleton',9,31,16);G('brute',7,33,16);G('ghost',10,33,16);
+  G('skeleton',43,28,16);G('brute',45,27,16,true);G('ghost',44,30,16);
+  G('ghost',13,6,16);G('skeleton',15,4,16);G('shroom',12,5,16);
+  G('ghost',20,9,17);G('ghost',32,9,17);
+  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-18.5)<4||Math.hypot(x-26,y-8)<9;
+  scatter(m,r,14,'ore',(x,y)=>true,near);
+  scatter(m,r,10,'logs',(x,y)=>true,near);
+  scatter(m,r,12,'herb',(x,y)=>true,near,true);
+  scatter(m,r,22,'glowcap',(x,y)=>true,near,true);
+  scatter(m,r,10,'cutbush',(x,y)=>true,near);
+  for(const[x,y]of[[19,3],[33,3],[19,12],[33,12],[26,2]])addProp(m,'brazier',x,y);
+  addProp(m,'sign',5,19,{text:'The Heart of Spicewood. The old tree stirs and its blight is spreading. End it, and the forest will breathe again.'});
+  m.spawns.push({type:'boss',variant:'heartwood',x:26*TS+8,y:5*TS,lvl:24});
+  m.start={x:3*TS,y:18.5*TS};
+  return m;
+}
+const MAPS={village:buildVillage,glade:buildGlade,dungeon:buildDungeon,amber:buildAmber,spore:buildSpore,marsh:buildMarsh,shrine:buildShrine,rust:buildRust,mine:buildMine,grove:buildGrove,crypt:buildCrypt,heart:buildHeart};
