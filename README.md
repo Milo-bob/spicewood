@@ -9,7 +9,7 @@ Vertical slice: hero select, the village of Hearthmoor, Ember Glade, the Hollow 
 - Skills: K, L
 - Roll: Space
 - Interact: E / Enter
-- Bag: I, Potion: Q, Pause: P, Back: Backspace, Sound: M
+- Bag: I, Skills & talents: T, Potion: Q, Pause: P, Back: Backspace, Sound: M
 
 ## Embedding
 Designed to run inside an iframe on Holiday Games. It posts `{type:'ready'}` on load and `{type:'score', value}` on level-up.
