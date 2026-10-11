@@ -16,13 +16,13 @@ const potCap=()=>9+3*(baseLv('alch')-1);
 // ---------- building upgrades ----------
 const BUILD={
   smithy:{name:'Smithy',costs:[null,{wood:10,ore:8,gold:100},{wood:25,ore:20,gold:300}],
-    gate:[null,()=>flags.boss,()=>false],gateText:['','Defeat Old Barkfather first','Needs more of the Spicewoods (future update)'],
+    gate:[null,()=>flags.boss,()=>flags.boss2],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first'],
     perk:['Forge Fine gear, upgrade items to +3','Forge Rare gear, upgrade to +6','Forge Epic gear, upgrade to +9']},
   alch:{name:'Alchemist',costs:[null,{wood:6,herb:8,gold:80},{wood:12,herb:20,gold:250}],
-    gate:[null,()=>flags.boss,()=>false],gateText:['','Defeat Old Barkfather first','Needs more of the Spicewoods (future update)'],
+    gate:[null,()=>flags.boss,()=>flags.boss2],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first'],
     perk:['Brew potions','Elixirs, potions heal 25% more','Greater elixirs, potions heal 50% more']},
   tavern:{name:'Tavern',costs:[null,{wood:8,leather:5,gold:80},{wood:16,leather:12,gold:250}],
-    gate:[null,()=>flags.boss,()=>false],gateText:['','Defeat Old Barkfather first','Needs more of the Spicewoods (future update)'],
+    gate:[null,()=>flags.boss,()=>flags.boss2],gateText:['','Defeat Old Barkfather first','Defeat Mother Mycelia in the Spore Warren first'],
     perk:['Rest and simple meals','Stronger meals, hunter\'s roast','Feasts, longest buffs']},
   store:{name:'Storehouse',costs:[null,{wood:12,ore:6,gold:100},{wood:30,ore:15,gold:300}],
     gate:[null,()=>flags.stage>=2,()=>flags.boss],gateText:['','Accept the Elder\'s quest first','Defeat Old Barkfather first'],

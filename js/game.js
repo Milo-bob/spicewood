@@ -10,7 +10,7 @@ let flags=null;
 const fade={a:0,dir:0,fn:null};
 const cam={x:0,y:0};
 const MAXLVL=15;
-const QUEST=['Talk to Elder Maren in the village','Find the Hollow Oak north of Ember Glade','Defeat Old Barkfather in the Hollow Oak','Return to Elder Maren','Explore Hearthmoor (more of the Spicewoods soon)'];
+const QUEST=['Talk to Elder Maren in the village','Find the Hollow Oak north of Ember Glade','Defeat Old Barkfather in the Hollow Oak','Return to Elder Maren','Cut the thorn vines at the east edge of Ember Glade','Find the Spore Warren in Amber Hollow','Wade through the flooded ford east of Amber Hollow','Explore Mistwater Marsh (Rustpeak is coming soon)'];
 const SAVE_KEY='spicewood_save_v1';
 const FONT='"Segoe UI",Tahoma,Verdana,Arial,sans-serif';
 
@@ -44,7 +44,9 @@ const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 function solidAt(px,py){
   const tx=Math.floor(px/TS),ty=Math.floor(py/TS);
   if(tx<0||ty<0||tx>=M.w||ty>=M.h)return true;
-  return SOLID[M.t[ty*M.w+tx]]===1;
+  const t=M.t[ty*M.w+tx];
+  if(t===25)return!(flags&&flags.boots);
+  return SOLID[t]===1;
 }
 function boxFree(x,y,hw,hh){return!(solidAt(x-hw,y-hh)||solidAt(x+hw,y-hh)||solidAt(x-hw,y+hh)||solidAt(x+hw,y+hh))}
 function move(e,dx,dy){
@@ -62,7 +64,7 @@ function newPlayer(idx){
      mats:{},buffs:[],learned:{},sp:0,bound:h.skills.map(k=>k.id),cdMax:[1,1],buff:null,mods:{},critMult:1.7,stealth:0,dashMult:1.8};
   P.eq.weapon={slot:'weapon',name:'Worn '+h.weaponNames[0],base:h.weaponNames[0],r:0,ilvl:1,dmg:5,aff:[]};
   recalc();P.hp=P.maxHp;
-  flags={stage:0,boss:false,sickle:false,chests:{},dun:{},base:{smithy:1,alch:1,tavern:1,store:1}};
+  flags={stage:0,boss:false,sickle:false,chests:{},dun:{},cut:{},boss2:false,boots:false,rewarded:false,base:{smithy:1,alch:1,tavern:1,store:1}};
   P.keys=0;
 }
 function recalc(){
@@ -131,7 +133,7 @@ function loadGame(){
     newPlayer(s.h);
     Object.assign(P,{lvl:s.lvl,xp:s.xp,pts:s.pts,alloc:s.alloc,gold:s.gold,potions:s.pot,bag:s.bag,eq:s.eq,learned:s.learned||{},sp:s.sp||0,mats:s.mats||{}});
     if(s.bound)P.bound=s.bound;
-    flags=Object.assign({stage:0,boss:false,sickle:false,chests:{},dun:{},base:{smithy:1,alch:1,tavern:1,store:1}},s.flags);P.keys=s.keys||0;
+    flags=Object.assign({stage:0,boss:false,sickle:false,chests:{},dun:{},cut:{},boss2:false,boots:false,rewarded:false,base:{smithy:1,alch:1,tavern:1,store:1}},s.flags);flags.rewarded=flags.rewarded||flags.stage>=4;P.keys=s.keys||0;
     recalc();P.hp=Math.min(s.hp||P.maxHp,P.maxHp);
     scene='play';ui=null;toasts=[];loadMap(s.map,s.x,s.y);return true;
   }catch(e){return false}
@@ -140,7 +142,7 @@ function loadGame(){
 
 // ---------- soft terrain: pre-render the map and dither tile borders so there are no hard edges ----------
 const NOBLEND=new Set([T.WALL,T.ROOF,T.DOOR,T.LOCK,T.OAK,20,21,22]);
-const fam=id=>id===17?0:id===24?9:id;
+const fam=id=>id===17?0:(id===24||id===26)?9:id;
 function buildLayer(){
   const c=document.createElement('canvas');c.width=M.w*TS;c.height=M.h*TS;
   const g=c.getContext('2d');g.imageSmoothingEnabled=false;
@@ -172,38 +174,55 @@ function buildLayer(){
 }
 
 // ---------- maps / spawning ----------
-function makeEnemy(type,x,y,lvl,elite){
+function makeEnemy(type,x,y,lvl,elite,variant){
   const d=ENEMIES[type],k=lvl-1;
   const hp=Math.round(d.hp*(1+.3*k)*(elite?2.4:1)),dmg=d.dmg*(1+.2*k)*(elite?1.3:1);
-  return{type,x,y,lvl,elite:!!elite,hp,maxHp:hp,dmg,speed:d.speed,hw:d.hw,hh:d.hh,aggro:d.aggro,
+  return{type,variant,x,y,lvl,elite:!!elite,hp,maxHp:hp,dmg,speed:d.speed,hw:d.hw,hh:d.hh,aggro:d.aggro,
     state:type==='boss'?'dormant':'idle',t:rand(0,2),cd:rand(.5,1.5),hitCd:0,kx:0,ky:0,flash:0,slow:0,stun:0,
     wx:0,wy:0,moving:false,dx:0,dy:1,dir:1,tele:null,seq:0,rot:0,anim:rand(0,6),home:{x,y}};
 }
 function loadMap(id,x,y){
   M=MAPS[id]();E=[];PR=[];EP=[];DR=[];FX=[];FT=[];
+  if(flags.cut&&flags.cut[id])applyCut();
   buildLayer();
   NP=M.npcs;
   CH=M.chests.map(c=>Object.assign({},c,{open:!!flags.chests[c.id]}));
   for(const g of M.gates||[]){
     if(g.id==='orbW'&&flags.dun.orb)g.open=true;
-    if(g.kind==='key'&&flags.dun.keydoor)g.open=true;
+    if(g.kind==='key'&&flags.dun[g.flagKey||'keydoor'])g.open=true;
+    if(g.kind==='plate'&&flags.dun[g.flag])g.open=true;
     if(g.kind==='room'&&flags.dun[g.room])g.open=true;
     if(!g.open)for(const[x,y]of g.tiles)M.t[y*M.w+x]=T.BARRIER;
   }
   for(const s of M.spawns){
-    if(s.type==='boss'&&flags.boss)continue;
+    if(s.type==='boss'&&(s.variant==='mycelia'?flags.boss2:flags.boss))continue;
     if(s.room&&flags.dun[s.room])continue;
-    const e=makeEnemy(s.type,s.x,s.y,s.lvl,s.elite);e.room=s.room;E.push(e);
+    const e=makeEnemy(s.type,s.x,s.y,s.lvl,s.elite,s.variant);e.room=s.room;E.push(e);
   }
   if(id==='dungeon'){
     if(flags.stage===1)flags.stage=2;
     if(flags.boss)bossAftermath(true);
   }
+  if(id==='spore'&&flags.boss2)bossAftermath(true);
+  if(id==='amber'&&flags.stage>=3&&flags.stage<5)flags.stage=5;
+  if(id==='marsh'&&flags.stage<7)flags.stage=7;
   DELAY=[];TRAPS=[];
   P.x=x;P.y=y;P.dashT=0;P.rollT=0;P.att=null;P.kx=P.ky=0;
   banner={t:3,text:M.name};
   snapCam();
   save();
+}
+const AFTER={
+  dungeon:{chest:'boss',cx:20,cy:3,wx:19,wy:7,to:'glade',tx:30*TS,ty:4.5*TS},
+  spore:{chest:'boss2',cx:22,cy:3,wx:21,wy:7,to:'amber',tx:46*TS,ty:4.5*TS}
+};
+function applyCut(){
+  for(let i=0;i<M.t.length;i++)if(M.t[i]===T.VINE)M.t[i]=T.PATH;
+  if(M.id==='glade'&&!M.warps.some(w=>w.to==='amber'))M.warps.push({x:43*TS,y:17*TS,w:TS,h:4*TS,to:'amber',tx:3*TS,ty:18.5*TS});
+}
+function cutVines(){
+  flags.cut[M.id]=true;applyCut();buildLayer();Snd.open();shake=3;
+  puff(P.x+P.face.x*16,P.y+P.face.y*16,16,'#6a8a30',80);
 }
 function openDoor(silent){
   for(let i=0;i<M.t.length;i++)if(M.t[i]===T.LOCK)M.t[i]=T.DFLOOR;
@@ -211,8 +230,9 @@ function openDoor(silent){
   if(!silent){toast('The sealed door grinds open!');Snd.open();shake=4}
 }
 function bossAftermath(silent){
-  if(!CH.some(c=>c.id==='boss'))CH.push({id:'boss',x:20*TS+8,y:3*TS+8,open:!!flags.chests.boss});
-  M.warps.push({x:19*TS,y:7*TS,w:2*TS,h:TS,to:'glade',tx:30*TS,ty:4.5*TS,portal:true});
+  const a=AFTER[M.id];if(!a)return;
+  if(!CH.some(c=>c.id===a.chest))CH.push({id:a.chest,x:a.cx*TS+8,y:a.cy*TS+8,open:!!flags.chests[a.chest]});
+  M.warps.push({x:a.wx*TS,y:a.wy*TS,w:2*TS,h:TS,to:a.to,tx:a.tx,ty:a.ty,portal:true});
 }
 function startFade(fn){if(fade.dir!==0)return;fade.dir=1;fade.fn=fn}
 function snapCam(){
@@ -319,19 +339,22 @@ function killEnemy(e){
   gainXp(Math.round(d.xp*m*(e.elite?2.5:1)*1.4));
   dropGold(e.x,e.y,Math.round(randi(d.gold[0],d.gold[1])*(1+.4*(e.lvl-1))*(e.elite?3:1)));
   if(Math.random()<.12)DR.push({kind:'hp',x:e.x,y:e.y,t:0,vx:rand(-20,20),vy:rand(-20,20)});
-  const mt={beetle:'shell',wolf:'leather',shroom:'herb'}[e.type];
-  if(mt&&Math.random()<(e.elite?1:.6))dropMat(e.x,e.y,mt,e.elite?2:1);
+  const mt={beetle:'shell',wolf:'leather',shroom:'herb',bat:'leather',brute:'herb'}[e.type];
+  if(mt&&Math.random()<(e.elite?1:.6))dropMat(e.x,e.y,mt,(e.elite?2:1)+(e.type==='brute'?1:0));
+  if(e.type==='brute'&&Math.random()<.4)dropMat(e.x,e.y,'shell',1);
   if(e.type==='beetle'&&Math.random()<.25)dropMat(e.x,e.y,'ore',1);
   if(e.type==='boss'){bossDefeated(e);return}
   if(e.elite||Math.random()<.18)dropItem(e.x,e.y,genItem(Math.max(1,e.lvl+(e.elite?1:0)),{minR:e.elite?1:0}));
   puff(e.x,e.y,12,e.type==='shroom'?'#c8501e':e.type==='wolf'?'#8b8478':'#c2551d',80);
 }
 function bossDefeated(e){
-  EP=[];flags.boss=true;flags.dun.boss=true;if(flags.stage<3)flags.stage=3;
+  EP=[];const my=e.variant==='mycelia';
+  if(my){flags.boss2=true;flags.dun.boss2=true;if(flags.stage<6)flags.stage=6}
+  else{flags.boss=true;flags.dun.boss=true;if(flags.stage<3)flags.stage=3}
   for(let i=0;i<30;i++)puff(e.x+rand(-14,14),e.y+rand(-14,14),3,'#d8741e',110);
   fx({k:'ring',x:e.x,y:e.y,r0:6,r1:120,t:0,dur:1,c:'#ffd080'});
   Snd.boom();shake=10;
-  toast('Old Barkfather has fallen!','#ffd040');
+  toast(my?'Mother Mycelia has withered!':'Old Barkfather has fallen!','#ffd040');
   bossAftermath();
   E.forEach(o=>{if(o!==e&&!o.dead&&o.type!=='boss'){o.hp=0;o.dead=true}});
   save();
@@ -346,7 +369,13 @@ function openChest(c){
     for(const[m_,n_]of[['shell',5],['ore',10],['wood',6],['leather',4],['herb',4]])dropMat(c.x+rand(-12,12),c.y+rand(8,16),m_,n_);
     flags.sickle=true;
     ui={mode:'dialog',d:{name:'Treasure',pages:['You obtained the THORNSICKLE!','A gate item: it can cut the thorn vines at the far east edge of Ember Glade.'],i:0}};
-  }else if(c.id==='dL'){P.keys++;toast('You found a Small Key!','#ffe040');drop(1,2,Math.max(4,lv+1));dropGold(c.x,c.y+8,30)}
+  }else if(c.id==='boss2'){
+    drop(2,2,12);drop(1,3,12);dropGold(c.x,c.y+8,250);
+    for(const[m_,n_]of[['shell',6],['ore',12],['wood',8],['leather',6],['herb',8]])dropMat(c.x+rand(-12,12),c.y+rand(8,16),m_,n_);
+    flags.boots=true;
+    ui={mode:'dialog',d:{name:'Treasure',pages:['You obtained the WOODEN BOOTS!','A gate item: with them you can wade through the flooded fords. The ford east of Amber Hollow leads to the Mistwater Marsh.'],i:0}};
+  }else if(c.id[0]==='m'&&c.id.length===2){drop(2,3,Math.max(8,lv+2));dropGold(c.x,c.y+8,90);dropMat(c.x,c.y+10,'ore',5);dropMat(c.x+6,c.y+10,'herb',4)}
+  else if(c.id==='dL'||c.id==='sL'){P.keys++;toast('You found a Small Key!','#ffe040');drop(1,2,Math.max(4,lv+1));dropGold(c.x,c.y+8,30)}
   else{drop(2,2,Math.max(4,lv+1));dropGold(c.x,c.y+8,40);dropMat(c.x,c.y+10,'ore',4);dropMat(c.x+6,c.y+10,'leather',2)}
   puff(c.x,c.y,10,'#ffd040',60);
 }
@@ -540,8 +569,36 @@ const AI={
     if(e.cd<=0&&d<160){spore(e,Math.atan2(uy,ux),75,e.dmg);e.cd=2.3}
     if(d>e.aggro*2.2)e.state='idle';
   },
+  bat(e,dt,d,ux,uy,sp){
+    switch(e.state){
+      case'idle':wander(e,dt,sp);if(d<e.aggro)e.state='chase';break;
+      case'chase':{
+        const w=Math.sin(time*7+e.anim)*.9;
+        move(e,(ux-uy*w)*sp*dt,(uy+ux*w)*sp*dt);
+        if(d<70&&e.cd<=0&&attackers()<2){e.state='wind';e.t=.4;e.dx=ux;e.dy=uy}
+        if(d>e.aggro*2.2)e.state='idle';break}
+      case'wind':e.t-=dt;e.dx=ux;e.dy=uy;if(e.t<=0){e.state='charge';e.t=.35}break;
+      case'charge':e.t-=dt;move(e,e.dx*175*dt,e.dy*175*dt);if(e.t<=0){e.state='chase';e.cd=1.8}break;
+    }
+  },
+  brute(e,dt,d,ux,uy,sp){
+    if(e.state==='idle'){wander(e,dt,sp);if(d<e.aggro)e.state='chase';return}
+    if(e.tele){
+      e.tele.t-=dt;
+      if(e.tele.t<=0){
+        fx({k:'ring',x:e.tele.x,y:e.tele.y,r0:6,r1:e.tele.r,t:0,dur:.3,c:'#c070ff'});shake=4;Snd.boom();
+        if(Math.hypot(P.x-e.tele.x,P.y-e.tele.y)<e.tele.r)hurtPlayer(e.dmg*1.3,e.tele.x,e.tele.y);
+        for(let i=0;i<8;i++)spore(e,i*TAU/8,70,e.dmg*.4);
+        e.tele=null;e.cd=3;
+      }
+      return;
+    }
+    if(d>24)move(e,ux*sp*dt,uy*sp*dt);
+    if(d<50&&e.cd<=0)e.tele={x:e.x,y:e.y,r:38,t:.8,dur:.8};
+    if(d>e.aggro*2.2)e.state='idle';
+  },
   boss(e,dt,d,ux,uy,sp){
-    if(e.state==='dormant'){if(d<150){e.state='fight';e.cd=1.5;toast('Old Barkfather awakens!','#ff8060');Snd.boom()}return}
+    if(e.state==='dormant'){if(d<150){e.state='fight';e.cd=1.5;toast(`${e.variant==='mycelia'?'Mother Mycelia':'Old Barkfather'} awakens!`,'#ff8060');Snd.boom()}return}
     const enr=e.hp<e.maxHp*.5;
     if(e.tele){
       e.tele.t-=dt;
@@ -554,18 +611,27 @@ const AI={
     }
     if(d>28)move(e,ux*sp*(enr?1.4:1)*dt,uy*sp*(enr?1.4:1)*dt);
     if(e.cd<=0){
-      const seq=enr?['slam','spores','summon','fan']:['slam','spores','fan'];
+      const my=e.variant==='mycelia';
+      const seq=my?(enr?['spores','rain','summon','slam','fan']:['spores','fan','summon','rain']):(enr?['slam','spores','summon','fan']:['slam','spores','fan']);
       const a=seq[e.seq++%seq.length];
-      if(a==='slam')e.tele={x:e.x,y:e.y,r:54,t:.9,dur:.9};
-      else if(a==='spores'){for(let i=0;i<12;i++)spore(e,i*TAU/12+e.rot,70,e.dmg*.5);e.rot+=.26;e.cd=enr?1.6:2.2;Snd.spell()}
+      if(a==='slam')e.tele={x:e.x,y:e.y,r:my?60:54,t:.9,dur:.9};
+      else if(a==='rain'){for(let i=0;i<4;i++){const a2=rand(0,TAU),rr=i?rand(20,70):0;hazardAt(P.x+Math.cos(a2)*rr,P.y+Math.sin(a2)*rr,26,e.dmg*.9,.9)}e.cd=enr?1.8:2.4;Snd.spell()}
+      else if(a==='spores'){const n=my?16:12;for(let i=0;i<n;i++)spore(e,i*TAU/n+e.rot,70,e.dmg*.5);e.rot+=.26;e.cd=enr?1.6:2.2;Snd.spell()}
       else if(a==='fan'){const b=Math.atan2(uy,ux);for(let i=-2;i<=2;i++)spore(e,b+i*.22,95,e.dmg*.5);e.cd=enr?1.6:2.2;Snd.spell()}
-      else{
+      else if(my){
+        if(E.filter(o=>!o.dead&&o.type==='shroom').length<6)for(let i=0;i<2;i++){const s2=makeEnemy('shroom',e.x+(i?-30:30),e.y+22,Math.max(1,e.lvl-3));s2.state='chase';if(boxFree(s2.x,s2.y,s2.hw,s2.hh))E.push(s2)}
+        e.cd=1.5;toast('Spore pods burst open!','#c070ff');
+      }else{
         if(E.filter(o=>!o.dead&&o.type==='beetle').length<5)for(let i=0;i<2;i++){const s=makeEnemy('beetle',e.x+(i?-26:26),e.y+20,Math.max(1,e.lvl-3));s.state='chase';if(boxFree(s.x,s.y,s.hw,s.hh))E.push(s)}
         e.cd=1.5;toast('Beetles crawl out of the bark!','#ffb070');
       }
     }
   }
 };
+function hazardAt(x,y,r,dmg,delay){
+  mark(x,y,r,delay);
+  later(delay,()=>{fx({k:'ring',x,y,r0:4,r1:r,t:0,dur:.3,c:'#c070ff'});puff(x,y,10,'#c070ff',60);Snd.boom();if(Math.hypot(P.x-x,P.y-y)<r)hurtPlayer(dmg,x,y)});
+}
 function attackers(){let n=0;for(const e of E)if(e.state==='wind'||e.state==='charge')n++;return n}
 function wander(e,dt,sp){
   e.t-=dt;
@@ -611,18 +677,24 @@ function interact(it){
   if(it.k==='chest'){openChest(it.o);return}
   if(it.k==='sign'){say('Signpost',[it.o.text]);return}
   if(it.k==='vine'){
-    if(flags.sickle)say('Thorn Vines',['You cut the vines with the Thornsickle. A scent of cardamom drifts through the gap.','Amber Hollow lies beyond... but that is a story for a future update. Thanks for playing the vertical slice!']);
-    else say('Thorn Vines',['Thick thorny vines block the way east. You need something sharp to cut through.']);
+    if(flags.sickle){
+      cutVines();
+      say('Thorn Vines',[M.id==='glade'?'You cut through the thorn vines with the Thornsickle! A path to Amber Hollow opens to the east.':'The Thornsickle makes short work of the thorns. The way east is open!']);
+    }else say('Thorn Vines',['Thick thorny vines block the way. You need something sharp to cut through.']);
     return;
   }
   const n=it.o;
   if(n.walk){say(n.name,[pick(n.lines)]);return}
   if(n.id==='elder'){
     if(flags.stage===0)say(n.name,['Welcome to Hearthmoor, traveler. Our village sits at the edge of the Spicewoods.','Something stirs in the Hollow Oak, north of Ember Glade. Beetles and wolves grow bolder every night.','Defeat the guardian, Old Barkfather, and bring me what he protects. Visit the Smith and the Alchemist first!'],()=>{flags.stage=1;toast('Quest: '+QUEST[1]);save()});
+    else if(flags.boss&&!flags.rewarded)say(n.name,['You did it! The Thornsickle... with it, the thorn vines at the east edge of Ember Glade will finally yield.','Take this reward. Your deeds have earned the village a share of the forest: the Smith, the Alchemist and the Tavern can now be expanded.'],()=>{
+      flags.rewarded=true;if(flags.stage<4)flags.stage=4;P.gold+=150;const it2=genItem(9,{minR:3});if(!addToBag(it2))dropItem(P.x,P.y+10,it2);toast('Received 150g and '+it2.name,RARITY[it2.r].c);save()});
     else if(flags.stage<3)say(n.name,['The road east leads into Ember Glade. The Hollow Oak is at its northern end. Be careful out there.']);
-    else if(flags.stage===3)say(n.name,['You did it! The Thornsickle... with it, the thorn vines of Amber Hollow will finally yield.','Take this reward. The Spicewoods hold many more secrets, but that is a tale for another day.'],()=>{
-      flags.stage=4;P.gold+=150;const it2=genItem(9,{minR:3});if(!addToBag(it2))dropItem(P.x,P.y+10,it2);toast('Received 150g and '+it2.name,RARITY[it2.r].c);save()});
-    else say(n.name,['More of the Spicewoods will open in future updates. Until then, hunt for better gear and grow stronger!']);
+    else if(flags.stage===3)say(n.name,['Come back once you have defeated Old Barkfather and opened the oak chest.']);
+    else if(flags.stage===4)say(n.name,['The thorn vines at the east edge of Ember Glade will yield to your Thornsickle. Beyond them lies Amber Hollow.']);
+    else if(flags.stage===5)say(n.name,['Amber Hollow is thick with spores. The Spore Warren lies in the far north. Mother Mycelia rules there. Take care.']);
+    else if(flags.stage===6)say(n.name,['The Wooden Boots! With them you can wade the flooded ford east of Amber Hollow, into the Mistwater Marsh.']);
+    else say(n.name,['Mistwater Marsh... Rustpeak rises beyond it, but we will need a hook for that gorge. That is a tale for the next update. Until then, grow stronger!']);
   }else if(n.id==='smith'){
     say(n.name,[baseLv('smithy')>1?'Back at the anvil! What can I do for you?':'My forge is ready. Bring me ore, leather and wood and I will make you something good.'],()=>{ui=smithMenu()});
   }else if(n.id==='alch'){
@@ -690,6 +762,7 @@ function updatePlay(dt){
   if(Input.hit('mute'))toast(Snd.toggle()?'Sound on':'Sound off');
 
   updateAmbient(dt);
+  if(M.id==='spore')updateBlocks(dt);
   for(const e of E)updateEnemy(e,dt);
   E=E.filter(e=>!e.dead);
   separate();
@@ -966,7 +1039,7 @@ function drawChest(c){
   else{cx.fillStyle='#a87a3a';cx.fillRect(x-7,y-5,14,4);cx.fillStyle='#ffd040';cx.fillRect(x-1,y-2,3,3)}
 }
 function drawEnemy(e){
-  const k=e.type,base=Spr.enemy[k],x=Math.round(e.x),y=Math.round(e.y);
+  const k=e.variant==='mycelia'?'boss2':e.type,base=Spr.enemy[k],x=Math.round(e.x),y=Math.round(e.y);
   const w=base.width,h=base.height;
   shadow(x,y+e.hh,Math.max(5,w/2));
   let spr=e.flash>0?Spr.flash[k]:(e.elite?Spr.elite[k]:base);
@@ -1023,7 +1096,7 @@ function drawHUD(){
     drawHeart(10+(i%per)*17,8+Math.floor(i/per)*14,fq,2);
   }
   const hy=12+Math.ceil(hearts/per)*14;
-  text(`${P.hero.name}  Lv ${P.lvl}   Gold ${P.gold}   Potions ${P.potions} (Q)`+(M.id==='dungeon'?`   Keys ${P.keys}`:''),8,hy,'#ffe9a0',8,'left',true);
+  text(`${P.hero.name}  Lv ${P.lvl}   Gold ${P.gold}   Potions ${P.potions} (Q)`+(M.dark?`   Keys ${P.keys}`:''),8,hy,'#ffe9a0',8,'left',true);
   let ly=hy+10;
   if(P.pts>0){text(`${P.pts} attribute points! (I)`,8,ly,'#ffe040',7);ly+=10}
   if(P.sp>0){text(`${P.sp} skill points! (T)`,8,ly,'#8fd0ff',7);ly+=10}
@@ -1052,7 +1125,7 @@ function drawHUD(){
   // boss bar
   for(const e of E)if(e.type==='boss'&&e.state!=='dormant'){
     bar(W/2-100,12,200,8,e.hp/e.maxHp,'#b82020');
-    text('Old Barkfather',W/2,2,'#ffd0a0',8,'center',true);
+    text(e.variant==='mycelia'?'Mother Mycelia':'Old Barkfather',W/2,2,'#ffd0a0',8,'center',true);
   }
   // banner and toasts
   if(banner.t>0){cx.globalAlpha=clamp(banner.t,0,1);text(banner.text,W/2,56,'#ffe9a0',18,'center',true);cx.globalAlpha=1}
@@ -1107,7 +1180,7 @@ function tryKeyDoor(){
   if(!kg)return;
   const gx=(kg.tiles[1][0]+.5)*TS,gy=(kg.tiles[1][1]+.5)*TS;
   if(Math.abs(P.x-gx)<30&&Math.abs(P.y-gy)<18&&P.y>gy&&P.face.y<-.3&&Input.axis().l>.1){
-    if(P.keys>0){P.keys--;setGate(kg,true);flags.dun.keydoor=true;toast('The small key unlocks the door!','#ffe040');Snd.open();shake=3}
+    if(P.keys>0){P.keys--;setGate(kg,true);flags.dun[kg.flagKey||'keydoor']=true;toast('The small key unlocks the door!','#ffe040');Snd.open();shake=3}
     else if(!P.keyMsg||P.keyMsg<time-2.5){P.keyMsg=time;toast('Locked. You need a small key.','#ff8070')}
   }
 }
@@ -1121,6 +1194,44 @@ function hitOrbs(x,y,r){
     }
   }
 }
+
+function updateBlocks(dt){
+  for(const b of M.props){
+    if(b.k!=='block')continue;
+    for(const ax of['ox','oy'])if(b[ax]){const v=b[ax];b[ax]=Math.abs(v)<1?0:v-Math.sign(v)*Math.min(Math.abs(v),120*dt)}
+  }
+  P.pushT=(P.pushT||0)-dt;
+  if(P.pushT<=0&&P.moving&&!P.att&&P.rollT<=0&&M.props.some(p=>p.k==='block')){
+    const a=Input.axis();let dx=0,dy=0;
+    if(Math.abs(a.x)>Math.abs(a.y)*1.2)dx=Math.sign(a.x);else if(Math.abs(a.y)>Math.abs(a.x)*1.2)dy=Math.sign(a.y);
+    if(dx||dy){
+      const tx=Math.floor((P.x+dx*9)/TS),ty=Math.floor((P.y+dy*9)/TS);
+      const b=M.props.find(p=>p.k==='block'&&p.tx===tx&&p.ty===ty);
+      if(b){
+        const nx=tx+dx,ny=ty+dy;
+        if(gt(M,nx,ny)===T.DFLOOR&&!M.props.some(p=>p.tx===nx&&p.ty===ny&&!p.deco)&&!E.some(e=>Math.floor(e.x/TS)===nx&&Math.floor(e.y/TS)===ny)){
+          M.t[ty*M.w+tx]=T.DFLOOR;M.t[ny*M.w+nx]=T.DBLOCK;b.tx=nx;b.ty=ny;b.ox=-dx*TS;b.oy=-dy*TS;P.pushT=.3;
+          Snd.menu();puff(b.tx*TS+8,b.ty*TS+14,5,'#8a867a',40);
+        }
+      }
+    }
+  }
+  for(const pl of M.plates){
+    const on=M.props.some(p=>p.k==='block'&&p.tx===pl.tx&&p.ty===pl.ty);pl.on=on;
+    if(on&&!flags.dun[pl.flag]){
+      flags.dun[pl.flag]=true;const g=M.gates.find(g=>g.id===pl.gate);if(g)setGate(g,true);
+      toast('Click! A heavy slab slides away.','#8fd0ff');Snd.open();shake=3;
+    }
+  }
+}
+function cyanHalo(){
+  if(!cyanHalo.c){
+    const c=document.createElement('canvas');c.width=c.height=120;const q=c.getContext('2d');
+    const rg=q.createRadialGradient(60,60,2,60,60,60);rg.addColorStop(0,'rgba(80,255,230,.5)');rg.addColorStop(1,'rgba(80,255,230,0)');
+    q.fillStyle=rg;q.fillRect(0,0,120,120);cyanHalo.c=c;
+  }
+  return cyanHalo.c;
+}
 function drawGates(){
   for(const g of M.gates||[]){
     if(g.open)continue;
@@ -1129,6 +1240,8 @@ function drawGates(){
       if(g.kind==='key'){
         cx.fillStyle='#2a1808';cx.fillRect(x,y,16,16);cx.fillStyle='#7a5226';cx.fillRect(x+1,y+1,14,14);cx.fillStyle='#5a3a18';cx.fillRect(x+1,y+7,14,2);
         cx.fillStyle='#d8b030';cx.fillRect(x+6,y+4,4,5);cx.fillStyle='#4a3008';cx.fillRect(x+7,y+6,2,2);
+      }else if(g.kind==='plate'){
+        cx.fillStyle='#2a2620';cx.fillRect(x,y,16,16);cx.fillStyle='#5a564c';cx.fillRect(x+1,y+1,14,14);cx.fillStyle='#3a362e';cx.fillRect(x+7,y+1,2,14);cx.fillStyle='#8fd0ff';cx.fillRect(x+6,y+6,4,4);
       }else{
         cx.fillStyle='#14100c';cx.fillRect(x,y,16,16);
         for(let i=1;i<16;i+=4){cx.fillStyle=g.kind==='orb'?'#4a6a9a':'#7a7a84';cx.fillRect(x+i,y,2,16);cx.fillStyle='#b8b8c4';cx.fillRect(x+i,y,1,16)}
@@ -1146,13 +1259,13 @@ function drawDarkLights(){
     q.fillStyle=rg;q.fillRect(0,0,120,120);drawDarkLights.h=gl;
   }
   cx.globalCompositeOperation='lighter';
-  for(const l of propLights()){cx.globalAlpha=clamp(l.a,0,1);cx.drawImage(drawDarkLights.h,Math.round(l.x-cam.x-l.r),Math.round(l.y-cam.y-l.r),l.r*2,l.r*2)}
+  for(const l of propLights()){cx.globalAlpha=clamp(l.a,0,1);cx.drawImage(l.c?cyanHalo():drawDarkLights.h,Math.round(l.x-cam.x-l.r),Math.round(l.y-cam.y-l.r),l.r*2,l.r*2)}
   cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
 }
 
 // ---------- props, critters, ambient life ----------
 function drawProp(p){
-  const x=p.tx*TS,y=p.ty*TS,t=time,R_=(c,a,b,w,h)=>{cx.fillStyle=c;cx.fillRect(x+a,y+b,w,h)};
+  const x=p.tx*TS+(p.ox||0),y=p.ty*TS+(p.oy||0),t=time,R_=(c,a,b,w,h)=>{cx.fillStyle=c;cx.fillRect(x+a,y+b,w,h)};
   switch(p.k){
     case'barrel':shadow(x+8,y+14,6);R_('#3a2410',3,2,10,13);R_('#8a5a22',4,3,8,12);R_('#a87a3a',5,4,2,10);R_('#4a3014',3,6,10,1);R_('#4a3014',3,11,10,1);break;
     case'crate':shadow(x+8,y+14,7);R_('#3a2410',2,4,12,11);R_('#9a6a30',3,5,10,9);R_('#6a4620',3,9,10,1);R_('#6a4620',7,5,1,9);break;
@@ -1175,6 +1288,9 @@ function drawProp(p){
       R_('#3a2410',2,-4,2,12);R_('#3a2410',28,-4,2,12);
       for(let i=0;i<8;i++)R_(i%2?'#f0e8d0':'#c0382a',i*4,-5,4,6);
       R_('#7a2418',0,1,32,1);break;
+    case'block':shadow(x+8,y+14,7);R_('#2a2620',0,1,16,15);R_('#6a665c',1,1,14,13);R_('#8a867a',1,1,14,3);R_('#4a463e',1,11,14,3);R_('#5a8a4a',3,5,3,2);R_('#5a8a4a',10,8,2,2);break;
+    case'plate':{const on=M.plates.some(q=>q.tx===p.tx&&q.ty===p.ty&&q.on)||flags.dun.plate1;R_('#2a2620',1,1,14,14);R_('#4a463e',2,2,12,12);R_(on?'#8fd0ff':'#6a665c',5,5,6,6);R_(on?'#d8f4ff':'#8a867a',6,6,2,2);break}
+    case'glowcap':{const g=.6+.4*Math.sin(t*3+p.tx*2);R_('#2a4a5a',7,9,2,5);R_('#2a4a5a',3,12,1,3);R_('#2a4a5a',12,11,1,4);cx.globalAlpha=g;R_('#40e0d0',5,6,6,4);R_('#40e0d0',1,10,5,3);R_('#40e0d0',10,9,5,3);R_('#c8fff4',6,7,2,1);cx.globalAlpha=1;break}
     case'brazier':shadow(x+8,y+14,6);R_('#2a2a30',4,9,8,6);R_('#4a4a54',3,8,10,3);{const f=Math.sin(t*12+p.tx)*1.2;R_('#d03a10',5,3-f,6,6+f);R_('#ff9a2a',6,2,4,6);R_('#ffe070',7,5,2,3)}break;
     case'orb':shadow(x+8,y+14,6);R_('#2a2a30',4,10,8,5);R_('#4a4a54',5,9,6,2);{const on=flags.dun.orb,b=Math.sin(t*3)*1;R_(on?'#3a5a3a':'#2a5a9a',4,2+b,8,8);R_(on?'#6a9a6a':'#6ab0ff',5,3+b,6,6);R_(on?'#a8d0a8':'#c8e8ff',6,4+b,2,2)}break;
     case'fire':{
@@ -1195,6 +1311,7 @@ function propLights(){
     else if(p.k==='lantern')L.push({x,y:y-4,r:36,a:.7});
     else if(p.k==='anvil')L.push({x:x+4,y,r:30,a:.6*f});
     else if(p.k==='pot')L.push({x,y,r:26,a:.4});
+    else if(p.k==='glowcap')L.push({x,y,r:36,a:.55,c:'cyan'});
     else if(p.k==='brazier')L.push({x,y:y-3,r:80,a:.9*f});
     else if(p.k==='orb'&&!flags.dun.orb)L.push({x,y:y-3,r:34,a:.6});
   }
@@ -1208,7 +1325,7 @@ function cutAround(x,y,r){
     if(!BREAK[p.k])continue;
     const px=(p.tx+.5)*TS,py=(p.ty+.5)*TS;
     if(Math.hypot(px-x,py-y)<r){
-      p.dead=true;any=true;M.t[p.ty*M.w+p.tx]=T.GRASS;
+      p.dead=true;any=true;M.t[p.ty*M.w+p.tx]=M.dark?T.DFLOOR:T.GRASS;
       puff(px,py,9,BREAK[p.k],60);
       if(p.k==='ore'){dropMat(px,py,'ore',randi(1,3));if(Math.random()<.2)dropMat(px,py,'shell',1)}
       else if(p.k==='logs')dropMat(px,py,'wood',randi(2,3));
@@ -1265,7 +1382,7 @@ function drawGrade(dt){
   const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgb(132,112,184)');g.addColorStop(.5,'rgb(190,128,120)');g.addColorStop(1,'rgb(236,150,100)');
   cx.fillStyle=g;cx.fillRect(0,0,W,H);
   cx.globalCompositeOperation='source-over';
-  if(M.id==='glade'){
+  if(M.mist){
     for(const m of MIST){m.x+=m.s*dt;if(m.x>W+m.r)m.x=-m.r;
       const rg=cx.createRadialGradient(m.x,m.y,4,m.x,m.y,m.r);rg.addColorStop(0,'rgba(255,200,150,.14)');rg.addColorStop(1,'rgba(255,200,150,0)');
       cx.fillStyle=rg;cx.fillRect(m.x-m.r,m.y-m.r,m.r*2,m.r*2)}
@@ -1280,7 +1397,7 @@ function drawGrade(dt){
   }
   // low sun: warm orange light raking in from the right
   cx.globalCompositeOperation='lighter';
-  for(const l of propLights()){cx.globalAlpha=clamp(l.a,0,1);cx.drawImage(drawGrade.g,Math.round(l.x-cam.x-l.r),Math.round(l.y-cam.y-l.r),l.r*2,l.r*2)}
+  for(const l of propLights()){cx.globalAlpha=clamp(l.a,0,1);cx.drawImage(l.c?cyanHalo():drawGrade.g,Math.round(l.x-cam.x-l.r),Math.round(l.y-cam.y-l.r),l.r*2,l.r*2)}
   cx.globalAlpha=1;
   const sun=cx.createLinearGradient(W,0,W*.35,0);sun.addColorStop(0,'rgba(255,130,40,.30)');sun.addColorStop(1,'rgba(255,130,40,0)');
   cx.fillStyle=sun;cx.fillRect(0,0,W,H);

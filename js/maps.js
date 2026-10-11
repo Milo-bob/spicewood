@@ -1,9 +1,9 @@
 'use strict';
-const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR:9,DWALL:10,VINE:11,LOCK:12,SHROOM:13,FENCE:14,OAK:15,LONE:16,BLOCK:17,FLOWER:18,CROP:19,BARRIER:24};
-const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1];
+const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR:9,DWALL:10,VINE:11,LOCK:12,SHROOM:13,FENCE:14,OAK:15,LONE:16,BLOCK:17,FLOWER:18,CROP:19,BARRIER:24,SHALLOW:25,DBLOCK:26};
+const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,0,1];
 
 function mk(id,name,w,h,fill){
-  return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],dark:false};
+  return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],plates:[],gates:[],rooms:[],mist:false,dark:false};
 }
 const gt=(m,x,y)=>(x<0||y<0||x>=m.w||y>=m.h)?-1:m.t[y*m.w+x];
 const st=(m,x,y,v)=>{if(x>=0&&y>=0&&x<m.w&&y<m.h)m.t[y*m.w+x]=v};
@@ -44,7 +44,7 @@ function building(m,x,y,w,h,roof){
 }
 
 
-function addProp(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1},extra||{}));st(m,tx,ty,T.BLOCK)}
+function addProp(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1},extra||{}));st(m,tx,ty,m.dark?T.DBLOCK:T.BLOCK)}
 function addDeco(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1,deco:true},extra||{}))}
 function scatter(m,r,n,k,ok,avoid,deco){
   let placed=0,guard=0;
@@ -146,6 +146,7 @@ function buildVillage(){
 // ================= Ember Glade (compact, hand-placed encounters) =================
 function buildGlade(){
   const m=mk('glade','Ember Glade',44,30,T.GRASS),r=seeded(7);
+  m.mist=true;
   for(let i=0;i<m.t.length;i++)if(r()<.22)m.t[i]=T.LEAF;
   forest(m,r,.58);
   const ground=()=>r()<.28?T.LEAF:T.GRASS;
@@ -237,4 +238,140 @@ function buildDungeon(){
   m.start={x:20*TS+8,y:29*TS};
   return m;
 }
-const MAPS={village:buildVillage,glade:buildGlade,dungeon:buildDungeon};
+
+// ================= Amber Hollow (thorn vines gate, then the Spore Warren) =================
+function buildAmber(){
+  const m=mk('amber','Amber Hollow',56,36,T.GRASS),r=seeded(21);
+  m.mist=true;
+  for(let i=0;i<m.t.length;i++)if(r()<.26)m.t[i]=T.LEAF;
+  forest(m,r,.6);
+  const ground=()=>r()<.3?T.LEAF:T.GRASS;
+  const PATHS=[
+    [[0,18],[8,18],[14,17],[22,14],[34,17],[38,20]],
+    [[22,14],[22,26],[26,28]],
+    [[38,20],[44,12],[46,6],[46,3]],
+    [[38,20],[46,26],[52,28]]
+  ];
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.TREE||t===T.ROCK));
+  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.TREE);
+  clear(9,18,4.2);clear(22,14,4.6);clear(23,27,4.2);clear(38,20,5.4);clear(46,6,3.8);clear(51,28,3.2);
+  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
+  disc(m,10,29,2.4,T.WATER);
+  // wall of thorn vines splits the map in two
+  for(let y=2;y<m.h-2;y++){st(m,31,y,y>=14&&y<=18?T.VINE:T.TREE);st(m,32,y,y>=14&&y<=18?T.VINE:T.TREE)}
+  // shallow ford to the marsh (needs the Wooden Boots)
+  rectT(m,50,27,6,3,T.SHALLOW);
+  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
+    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=17&&y<=20)&&!(x>=m.w-2&&y>=27&&y<=29))st(m,x,y,T.TREE)}
+  }
+  rectT(m,0,18,3,2,T.PATH);
+  st(m,45,2,T.OAK);st(m,46,2,T.OAK);
+  m.warps.push({x:0,y:17*TS,w:TS,h:4*TS,to:'glade',tx:41*TS,ty:18.5*TS});
+  m.warps.push({x:45*TS,y:2*TS,w:2*TS,h:TS,to:'spore',tx:22*TS+8,ty:31*TS});
+  m.warps.push({x:54*TS,y:27*TS,w:2*TS,h:3*TS,to:'marsh',tx:4*TS,ty:15*TS});
+  m.chests.push({id:'a1',x:23*TS+8,y:27*TS+8},{id:'a2',x:41*TS+8,y:16*TS+8});
+  for(let y=3;y<m.h-3;y++)for(let x=3;x<m.w-3;x++){
+    const t=gt(m,x,y);
+    if((t===T.GRASS||t===T.LEAF)&&r()<.03)st(m,x,y,T.SHROOM);
+  }
+  const c=t=>t*TS+8;
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite});
+  G('bat',8,17,5);G('bat',10,19,5);G('bat',9,16,5);G('shroom',11,18,5);                        // A
+  G('brute',22,14,5);G('shroom',20,12,5);G('shroom',24,16,5);G('bat',21,16,5);               // B
+  G('shroom',21,27,5);G('shroom',25,27,5);G('bat',23,25,5);G('brute',24,29,6);               // C: chest meadow
+  G('brute',37,19,6,true);G('bat',39,21,6);G('bat',36,22,6);G('shroom',40,19,6);G('shroom',38,17,6); // D: arena
+  G('brute',45,6,7);G('bat',44,8,7);G('bat',47,7,7);                                          // E: guards the warren
+  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-2,y-18)<3||Math.hypot(x-46,y-3)<3||(x>=49&&y>=26&&y<=30);
+  scatter(m,r,34,'cutbush',(x,y)=>true,near);
+  scatter(m,r,10,'clay',(x,y)=>true,near);
+  scatter(m,r,9,'ore',(x,y)=>true,near);
+  scatter(m,r,7,'logs',(x,y)=>true,near);
+  scatter(m,r,14,'herb',(x,y)=>true,near,true);
+  scatter(m,r,26,'glowcap',(x,y)=>true,near,true);
+  addProp(m,'sign',6,19,{text:'Amber Hollow. The air is thick with spores. Beyond the thorns to the east lies the Spore Warren, far to the north.'});
+  addProp(m,'sign',48,5,{text:'The Spore Warren. Mushrooms grow where nothing else can. Crates of stone can be pushed onto pressure plates...'});
+  addProp(m,'sign',49,27,{text:'A flooded ford leads east into the Mistwater Marsh. The water is too deep to wade without proper boots.'});
+  m.start={x:3*TS,y:18.5*TS};
+  return m;
+}
+
+// ================= Spore Warren (dungeon 2: block puzzle, plate gate, key door, Mother Mycelia) =================
+function buildSpore(){
+  const m=mk('spore','The Spore Warren',44,36,T.DWALL);
+  m.dark=true;
+  const room=(x1,y1,x2,y2)=>rectT(m,x1,y1,x2-x1+1,y2-y1+1,T.DFLOOR);
+  room(18,28,26,33);   // entrance
+  room(21,25,23,27);   // corridor
+  room(14,17,30,24);   // hall (arena)
+  room(12,19,13,21);   // west corridor
+  room(3,16,11,24);    // west room: block puzzle
+  room(31,19,32,21);   // east corridor
+  room(33,16,41,24);   // east room (arena + key)
+  room(21,11,23,16);   // north corridor: plate gate, key door
+  room(12,2,32,10);    // boss room
+  for(const[x,y]of[[17,20],[27,20],[7,19],[7,24]])st(m,x,y,T.DWALL);
+  const gate=(id,kind,rm,x,y,w,h,extra)=>{const g=Object.assign({id,kind,room:rm,open:kind==='room',tiles:[]},extra||{});for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g.tiles.push([i,j]);m.gates.push(g)};
+  gate('hallS1','room','hall1',21,25,3,1);gate('hallW1','room','hall1',13,19,1,3);gate('hallE1','room','hall1',31,19,1,3);
+  gate('eastW2','room','east2',32,19,1,3);
+  gate('plateG','plate',null,21,15,3,1,{flag:'plate1'});
+  gate('keyG','key',null,21,12,3,1,{flagKey:'keydoor2'});
+  m.rooms.push({id:'hall1',x1:14,y1:17,x2:30,y2:24,gates:['hallS1','hallW1','hallE1'],name:'The warren hall'});
+  m.rooms.push({id:'east2',x1:33,y1:16,x2:41,y2:24,gates:['eastW2'],name:'The spore chamber'});
+  m.plates.push({tx:9,ty:22,gate:'plateG',flag:'plate1'});
+  m.props.push({k:'plate',tx:9,ty:22,w:1,deco:true});
+  addProp(m,'block',5,19);
+  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'amber',tx:46*TS,ty:4.5*TS});
+  m.chests.push({id:'sL',x:40*TS+8,y:17*TS+8},{id:'sR',x:4*TS+8,y:17*TS+8});
+  for(const[x,y]of[[14,17],[30,17],[14,24],[30,24],[12,2],[32,2],[12,10],[32,10]])addProp(m,'brazier',x,y);
+  for(const[x,y]of[[19,29],[25,29],[19,32],[25,32],[10,24],[40,24]])addProp(m,'clay',x,y);
+  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9]])addProp(m,'ore',x,y);
+  for(const[x,y]of[[16,19],[28,19],[6,17],[10,20],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
+  addProp(m,'sign',20,30,{text:'The Spore Warren. Stone blocks can be pushed (walk into them), but never pulled. If a block gets stuck, leave and come back in.'});
+  const c=t=>t*TS+8;
+  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite,room:rm});
+  S('bat',16,19,6,false,'hall1');S('bat',28,22,6,false,'hall1');S('bat',20,22,6,false,'hall1');S('shroom',16,23,6,false,'hall1');S('shroom',28,18,6,false,'hall1');S('brute',22,20,6,false,'hall1');
+  S('brute',35,18,7,false,'east2');S('brute',38,22,7,false,'east2');S('bat',36,20,7,false,'east2');S('bat',34,23,7,false,'east2');S('shroom',39,17,7,true,'east2');
+  m.spawns.push({type:'boss',variant:'mycelia',x:22*TS+8,y:5*TS,lvl:9});
+  m.start={x:22*TS+8,y:31*TS};
+  return m;
+}
+
+// ================= Mistwater Marsh (flooded: the Wooden Boots let you wade) =================
+function buildMarsh(){
+  const m=mk('marsh','Mistwater Marsh',54,34,T.WATER),r=seeded(33);
+  m.mist=true;
+  const ground=()=>r()<.35?T.LEAF:T.GRASS;
+  const isl=(x,y,rad)=>disc(m,x,y,rad,ground);
+  isl(9,15,4);isl(20,9,4.6);isl(21,22,4.6);isl(33,15,5.2);isl(44,8,3.8);isl(44,24,4);
+  const FORDS=[[[0,15],[9,15],[14,12],[20,9]],[[9,15],[14,19],[21,22]],[[20,9],[27,12],[33,15]],[[21,22],[28,19],[33,15]],[[33,15],[40,11],[44,8]],[[33,15],[38,20],[44,24]]];
+  for(const p of FORDS)polyline(m,p,(x,y)=>disc(m,x,y,1.4,T.SHALLOW,t=>t===T.WATER));
+  rectT(m,0,14,4,3,T.SHALLOW);
+  // reeds, rocks and a cliff to the east
+  for(let y=1;y<m.h-1;y++)for(let x=1;x<m.w-1;x++){
+    const t=gt(m,x,y);
+    if((t===T.GRASS||t===T.LEAF)&&r()<.05)st(m,x,y,T.ROCK);
+    if(x>=50&&t===T.WATER)st(m,x,y,T.ROCK);
+  }
+  rectT(m,50,0,4,m.h,T.ROCK);
+  rectT(m,0,0,m.w,1,T.WATER);
+  m.warps.push({x:0,y:14*TS,w:TS,h:3*TS,to:'amber',tx:51*TS,ty:28.5*TS});
+  m.chests.push({id:'m1',x:44*TS+8,y:7*TS+8},{id:'m2',x:44*TS+8,y:25*TS+8},{id:'m3',x:20*TS+8,y:8*TS+8});
+  const c=t=>t*TS+8;
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite});
+  G('bat',19,8,8);G('bat',22,10,8);G('shroom',20,11,8);G('shroom',18,10,8);
+  G('brute',21,21,8);G('wolf',23,23,8);G('bat',19,24,8);
+  G('brute',32,14,9,true);G('bat',34,16,9);G('bat',31,17,9);G('shroom',35,14,9);G('wolf',33,12,9);
+  G('brute',43,23,9);G('shroom',45,25,9);
+  G('bat',43,8,9);G('bat',46,9,9);
+  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-9,y-15)<2;
+  scatter(m,r,10,'herb',(x,y)=>true,near,true);
+  scatter(m,r,8,'cutbush',(x,y)=>true,near);
+  scatter(m,r,6,'ore',(x,y)=>true,near);
+  scatter(m,r,6,'logs',(x,y)=>true,near);
+  scatter(m,r,12,'glowcap',(x,y)=>true,near,true);
+  addProp(m,'sign',7,14,{text:'Mistwater Marsh. Solid ground is rare here. Follow the shallow fords from island to island.'});
+  addProp(m,'sign',47,9,{text:'A sheer gorge cuts off the east. Rustpeak rises beyond it, but you will need a hook to cross... (coming in a future update)'});
+  m.start={x:4*TS,y:15*TS};
+  return m;
+}
+const MAPS={village:buildVillage,glade:buildGlade,dungeon:buildDungeon,amber:buildAmber,spore:buildSpore,marsh:buildMarsh};

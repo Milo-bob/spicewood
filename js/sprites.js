@@ -74,6 +74,41 @@ const Spr=(()=>{
     '.swes',
     '.ssss',
     '..s..']),{r:'#c8501e',w:'#ffffff',d:'#7a2e10',s:'#e8d8b8',e:'#1b1b1b'});
+  enemy.bat=make(sym([
+    'bb...',
+    'bbd..',
+    'bbddd',
+    '.bdwe',
+    '..ddd',
+    '...d.']),{b:'#6a4a7a',d:'#3a2448',w:'#ffffff',e:'#1b1b1b'});
+  enemy.brute=make(sym([
+    '..rrrr',
+    '.rrwrr',
+    'rrrrrr',
+    'rwrrrr',
+    'rrrrwr',
+    '.ddddd',
+    '.swess',
+    '.ssssm',
+    '..ssss',
+    '..s...']),{r:'#8a4a9a',w:'#f0e0ff',d:'#4a2a5a',s:'#d8c8b0',e:'#1b1b1b',m:'#6a2a2a'});
+  enemy.boss2=make(sym([
+    '..rrrrrr',
+    '.rrwrrrr',
+    'rrrrrrwr',
+    'rwrrrrrr',
+    'rrrrwrrr',
+    '.ddddddd',
+    '..ssssss',
+    '..sswess',
+    '..ssssss',
+    '..sssmmm',
+    '..ssssmm',
+    '...sssss',
+    '..lssssl',
+    '.l.sssss',
+    'l..ss.ss',
+    '...s..s.']),{r:'#8a3aaa',w:'#f0d8ff',d:'#3a1a4a',s:'#d0c0a8',e:'#1b1b1b',m:'#2a0a1a',l:'#a08a68'},2);
   enemy.boss=make(sym([
     '..gg..gg',
     '.ggggggg',
@@ -123,7 +158,7 @@ const Spr=(()=>{
       R(g,'rgba(0,0,0,.25)',3,12,10,3);R(g,'#4a2c14',6,10,4,5);
       R(g,c[2],1,3,14,9);R(g,c[0],1,1,14,8);R(g,c[0],3,0,10,1);R(g,c[1],3,2,5,3);R(g,c[1],10,5,3,2);R(g,c[2],2,9,12,2);
     });
-    multi(T.WATER,(g,r)=>{R(g,'#3b6e8f',0,0,16,16);for(let i=0;i<4;i++)R(g,'#5b8fb0',Math.floor(r()*12),Math.floor(r()*15),3+Math.floor(r()*3),1);speck(g,r,['#2f5c7a'],6)});
+    multi(T.WATER,(g,r)=>{R(g,'#2a4e6a',0,0,16,16);for(let i=0;i<3;i++)R(g,'#3f6e8c',Math.floor(r()*12),Math.floor(r()*15),3+Math.floor(r()*3),1);speck(g,r,['#1f3e56'],6)});
     multi(T.WALL,(g,r,v)=>{R(g,'#7a5a3a',0,0,16,16);for(let y=3;y<16;y+=4)R(g,'#5a3e24',0,y,16,1);for(let y=0;y<16;y+=4)R(g,'#8c6c46',(y*3)%11,y,3,1);if(v===1){R(g,'#2a1808',4,3,8,8);R(g,'#ffc860',5,4,6,6);R(g,'#ffe8a0',5,4,6,2);R(g,'#2a1808',8,4,1,6);R(g,'#2a1808',5,7,6,1)}});
     const roof=(base,dk,lt)=>(g,r)=>{R(g,base,0,0,16,16);for(let y=3;y<16;y+=4){R(g,dk,0,y,16,1);R(g,lt,0,y-3,16,1)}for(let y=0;y<16;y+=4)for(let x=(y%8?0:4);x<16;x+=8)R(g,dk,x,y,1,3)};
     multi(T.ROOF,roof('#7a3020','#561e12','#964428'));
@@ -141,9 +176,10 @@ const Spr=(()=>{
     multi(17,grass);
     multi(18,(g,r)=>{grass(g,r);const cs=['#e8d040','#e86a8a','#f0f0f0','#c070e0','#ff9a2a'];for(let i=0;i<6;i++){const x=Math.floor(r()*14)+1,y=Math.floor(r()*13)+2;R(g,'#4a6a22',x,y+1,1,2);R(g,cs[Math.floor(r()*cs.length)],x,y,1+(r()<.4?1:0),1)}});
     multi(19,(g,r)=>{R(g,'#4a3018',0,0,16,16);for(let y=1;y<16;y+=4)R(g,'#5e3c20',0,y,16,2);for(let x=2;x<16;x+=5)for(let y=0;y<16;y+=4){R(g,'#6a9a30',x,y,1,2);R(g,r()<.5?'#d8741e':'#8abc40',x-1,y-1<0?0:y-1,3,1)}});
+    multi(25,(g,r)=>{R(g,'#4d9aa6',0,0,16,16);for(let i=0;i<5;i++)R(g,'#9fd8de',Math.floor(r()*12),Math.floor(r()*15),3+Math.floor(r()*3),1);speck(g,r,['#2f6672'],6);for(let i=0;i<3;i++){const x=Math.floor(r()*14)+1;R(g,'#3e7a2a',x,Math.floor(r()*6)+3,1,6);R(g,'#7ab04a',x,Math.floor(r()*6)+2,1,2)}});
     multi(T.OAK,(g,r)=>{R(g,'#5a3a1c',0,0,16,16);R(g,'#3e2810',0,0,2,16);R(g,'#3e2810',14,0,2,16);R(g,'#120a06',2,1,12,15);R(g,'#1e120a',4,3,8,13);R(g,'#2a1a0e',6,6,4,10);R(g,'#7a5a2c',1,0,14,1)});
   }
   build();
-  tiles[24]=tiles[9];tiles[23]=tiles[9];
+  tiles[24]=tiles[9];tiles[23]=tiles[9];tiles[26]=tiles[9];
   return{make,tint,heroes,npc,enemy,elite,flash,tiles};
 })();

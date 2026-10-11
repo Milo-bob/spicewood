@@ -32,6 +32,8 @@ const ENEMIES={
   beetle:{name:'Ember Beetle',hp:26,dmg:6,speed:30,xp:8,gold:[1,4],hw:5,hh:4,aggro:100},
   wolf:{name:'Rust Wolf',hp:22,dmg:5,speed:64,xp:8,gold:[1,5],hw:6,hh:4,aggro:130},
   shroom:{name:'Nutmeg Shroomling',hp:18,dmg:5,speed:22,xp:8,gold:[2,5],hw:4,hh:4,aggro:130},
+  bat:{name:'Mire Bat',hp:14,dmg:5,speed:70,xp:9,gold:[2,5],hw:5,hh:4,aggro:140},
+  brute:{name:'Capcrusher',hp:70,dmg:11,speed:18,xp:22,gold:[4,9],hw:7,hh:6,aggro:120},
   boss:{name:'Old Barkfather',hp:520,dmg:14,speed:22,xp:200,gold:[80,120],hw:12,hh:10,aggro:150}
 };
 

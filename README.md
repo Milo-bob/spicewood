@@ -1,7 +1,7 @@
 # Spicewood
 
 A top-down autumn action-RPG for the browser (HTML5 Canvas, no dependencies, runs as a static page).
-Vertical slice: hero select, the village of Hearthmoor, Ember Glade, the Hollow Oak dungeon and the boss Old Barkfather.
+Hero select, the village of Hearthmoor, Ember Glade, Amber Hollow, Mistwater Marsh and two dungeons (Hollow Oak, Spore Warren) with bosses. Gate items (Thornsickle, Wooden Boots) open new areas.
 
 ## Controls
 - Move: WASD / arrow keys (touch: on-screen stick)
