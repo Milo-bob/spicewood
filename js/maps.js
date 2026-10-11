@@ -45,13 +45,14 @@ function building(m,x,y,w,h,roof){
 
 
 function addProp(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1},extra||{}));st(m,tx,ty,T.BLOCK)}
-function scatter(m,r,n,k,ok,avoid){
+function addDeco(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1,deco:true},extra||{}))}
+function scatter(m,r,n,k,ok,avoid,deco){
   let placed=0,guard=0;
   while(placed<n&&guard++<600){
     const x=3+Math.floor(r()*(m.w-6)),y=3+Math.floor(r()*(m.h-6)),t=gt(m,x,y);
     if(t!==T.GRASS&&t!==T.LEAF)continue;
     if(!ok(x,y)||(avoid&&avoid(x,y)))continue;
-    addProp(m,k,x,y);placed++;
+    if(deco)addDeco(m,k,x,y);else addProp(m,k,x,y);placed++;
   }
 }
 
@@ -62,13 +63,16 @@ function buildVillage(){
   // roads
   rectT(m,2,14,38,2,T.PATH);rectT(m,19,5,2,23,T.PATH);rectT(m,16,12,8,6,T.PATH);
   // buildings
-  const B=[[3,6,'Smithy',20],[11,7,'Tavern',T.ROOF],[22,6,'Alchemist',21],[31,6,"Elder's House",22]];
-  for(const[x,w,label,rf]of B){
+  const B=[[3,6,'Smithy',20,'smithy'],[11,7,'Tavern',T.ROOF,'tavern'],[22,6,'Alchemist',21,'alch'],[31,6,"Elder's House",22,null]];
+  for(const[x,w,label,rf,bid]of B){
     building(m,x,5,w,5,rf);
     const dx=x+Math.floor(w/2);
     rectT(m,dx,10,2,4,T.PATH);
-    m.labels.push({x:(x+w/2)*TS,y:5*TS-8,text:label});
+    m.labels.push({x:(x+w/2)*TS,y:5*TS-8,text:bid?(()=>`${label} Lv ${baseLv(bid)}`):label});
   }
+  // storehouse
+  building(m,33,16,5,4,20);rectT(m,35,20,1,1,T.PATH);rectT(m,21,20,15,1,T.PATH);
+  m.labels.push({x:35.5*TS,y:16*TS-8,text:()=>`Storehouse Lv ${baseLv('store')}`});
   // pond
   disc(m,7,22,3.6,T.WATER);
   // scattered trees in the south and corners
@@ -88,6 +92,7 @@ function buildVillage(){
     {id:'elder',name:'Elder Maren',x:c(22.5),y:c(17),pal:{h:'#e8e8e8',c:'#6a5a8a',k:'#3a2a5a',g:'#d8b040'}},
     {id:'smith',name:'Torvald the Smith',x:c(8),y:c(11),pal:{h:'#4a2a1a',c:'#7a5a3a',k:'#3a2a1a',g:'#a0a0a0'}},
     {id:'tavern',name:'Dolly',x:c(15.5),y:c(11.5),pal:{h:'#a8541e',c:'#b0603a',k:'#6a3a1e',g:'#f0e0c0'}},
+    {id:'stash',name:'Bruna the Keeper',x:c(37),y:c(20.5),pal:{h:'#7a7a8a',c:'#6a5a4a',k:'#3a2e22',g:'#d8c890'}},
     {id:'alch',name:'Pip the Alchemist',x:c(26),y:c(11),pal:{h:'#2a6a4a',c:'#3a8a5a',k:'#1a4a2a',g:'#8fe0a0'}}
   );
 
@@ -111,7 +116,7 @@ function buildVillage(){
   // market stalls
   prop('stall',11,17,2);prop('crate',13,17);prop('stall',27,17,2);prop('barrel',26,18);
   // lanterns
-  for(const[x,y]of[[9,13],[18,11],[21,11],[29,13],[33,13],[9,16],[29,16],[33,16],[18,19],[21,19]])prop('lantern',x,y);
+  for(const[x,y]of[[9,13],[18,11],[21,11],[29,13],[33,13],[9,16],[29,16],[31,16],[18,19],[21,19]])prop('lantern',x,y);
   // flowers on free grass
   for(let n=0;n<70;n++){
     const x=3+Math.floor(r()*34),y=10+Math.floor(r()*17);
@@ -120,6 +125,8 @@ function buildVillage(){
   prop('sign',36,13);m.props[m.props.length-1].text='East of Hearthmoor lies Ember Glade. Beetles, wolves and worse... Keep your sword sharp!';
   scatter(m,r,26,'cutbush',(x,y)=>y>=10&&Math.hypot(x-20,y-15)>5);
   scatter(m,r,10,'clay',(x,y)=>y>=10&&y<=12&&Math.hypot(x-20,y-15)>5);
+  scatter(m,r,4,'logs',(x,y)=>(x<10||x>30)&&y>=10);
+  scatter(m,r,5,'herb',(x,y)=>y>=17&&Math.hypot(x-20,y-15)>5,null,true);
   m.chimneys=[{x:7.2*TS,y:5*TS},{x:16*TS,y:5*TS},{x:26*TS,y:5*TS},{x:35*TS,y:5*TS}];
   // wandering villagers
   const lines=[
@@ -181,6 +188,9 @@ function buildGlade(){
   const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-22)<3||Math.hypot(x-30,y-4)<3;
   scatter(m,r,34,'cutbush',(x,y)=>true,near);
   scatter(m,r,10,'clay',(x,y)=>true,near);
+  scatter(m,r,9,'ore',(x,y)=>true,near);
+  scatter(m,r,8,'logs',(x,y)=>true,near);
+  scatter(m,r,14,'herb',(x,y)=>true,near,true);
   addProp(m,'sign',27,6,{text:'The Hollow Oak lies just north. Something ancient sleeps inside... Old Barkfather!'});
   addProp(m,'sign',5,20,{text:'Hearthmoor is back to the west. Rest at the tavern before you go deeper.'});
   m.start={x:3*TS,y:22*TS};
@@ -217,6 +227,7 @@ function buildDungeon(){
   addProp(m,'orb',36,15);
   addProp(m,'sign',22,28,{text:'The Hollow Oak. The doors seal while enemies remain. A small key opens the north door, and a glowing orb can be struck with a weapon or arrow...'});
   addProp(m,'clay',4,21);addProp(m,'clay',8,15);
+  for(const[x,y]of[[4,19],[8,19],[14,19],[26,19],[36,19],[32,15],[13,4],[27,4],[13,8],[27,8]])addProp(m,'ore',x,y);
   const c=t=>t*TS+8;
   const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite,room:rm});
   S('beetle',14,17,4,false,'hall');S('beetle',26,17,4,false,'hall');S('beetle',20,19,4,false,'hall');S('shroom',14,22,4,false,'hall');S('shroom',26,22,4,false,'hall');S('wolf',20,22,4,false,'hall');

@@ -93,13 +93,16 @@ function genItem(ilvl,o){
   it.name=pick(PREFIX)+' '+it.base+(r===4?' of Spicewood':'');
   return it;
 }
-function sellValue(it){return Math.round((1+it.r*it.r*1.5)*it.ilvl*1.5+3)}
+const upMul=it=>1+.12*(it.up||0);
+const itemDmg=it=>it.dmg?Math.round(it.dmg*upMul(it)):0;
+const itemArmor=it=>it.armor?Math.round(it.armor*upMul(it)):0;
+function sellValue(it){return Math.round((1+it.r*it.r*1.5)*it.ilvl*1.5+3)+(it.up||0)*6}
 function itemLines(it){
   const L=[];
   L.push({t:it.name,c:RARITY[it.r].c});
   L.push({t:`${RARITY[it.r].n} ${SLOT_LABEL[it.slot==='ring'?'ring1':it.slot]}  (iLvl ${it.ilvl})`,c:'#a89878'});
-  if(it.dmg)L.push({t:`${it.dmg} Damage`,c:'#ffffff'});
-  if(it.armor)L.push({t:`${it.armor} Armor`,c:'#ffffff'});
+  if(it.dmg)L.push({t:`${itemDmg(it)} Damage`+(it.up?` (+${it.up})`:''),c:'#ffffff'});
+  if(it.armor)L.push({t:`${itemArmor(it)} Armor`+(it.up?` (+${it.up})`:''),c:'#ffffff'});
   for(const a of it.aff)L.push({t:AFFDEF[a.k].fmt(a.v),c:'#8fd0ff'});
   L.push({t:`Sells for ${sellValue(it)}g`,c:'#e8c050'});
   return L;

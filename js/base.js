@@ -1,0 +1,181 @@
+'use strict';
+// ---------- Materials, crafting and base building (Hearthmoor) ----------
+const MATS={
+  wood:{n:'Wood',c:'#b8844a'},ore:{n:'Ore',c:'#9ab0c8'},herb:{n:'Herbs',c:'#6ac860'},
+  leather:{n:'Leather',c:'#d0905a'},shell:{n:'Shell',c:'#e08a3a'}
+};
+const matsLine=()=>Object.keys(MATS).map(k=>`${MATS[k].n} ${P.mats[k]||0}`).join('   ')+`   Gold ${P.gold}`;
+function costText(c){const o=[];for(const k in c)o.push(k==='gold'?c[k]+'g':c[k]+' '+MATS[k].n);return o.join(', ')}
+function canPay(c){for(const k in c){if(k==='gold'){if(P.gold<c[k])return false}else if((P.mats[k]||0)<c[k])return false}return true}
+function pay(c){for(const k in c){if(k==='gold')P.gold-=c[k];else P.mats[k]-=c[k]}}
+function addMat(k,n){P.mats[k]=(P.mats[k]||0)+n}
+const baseLv=id=>(flags.base&&flags.base[id])||1;
+const bagCap=()=>20+10*(baseLv('store')-1);
+const potCap=()=>9+3*(baseLv('alch')-1);
+
+// ---------- building upgrades ----------
+const BUILD={
+  smithy:{name:'Smithy',costs:[null,{wood:10,ore:8,gold:100},{wood:25,ore:20,gold:300}],
+    gate:[null,()=>flags.boss,()=>false],gateText:['','Defeat Old Barkfather first','Needs more of the Spicewoods (future update)'],
+    perk:['Forge Fine gear, upgrade items to +3','Forge Rare gear, upgrade to +6','Forge Epic gear, upgrade to +9']},
+  alch:{name:'Alchemist',costs:[null,{wood:6,herb:8,gold:80},{wood:12,herb:20,gold:250}],
+    gate:[null,()=>flags.boss,()=>false],gateText:['','Defeat Old Barkfather first','Needs more of the Spicewoods (future update)'],
+    perk:['Brew potions','Elixirs, potions heal 25% more','Greater elixirs, potions heal 50% more']},
+  tavern:{name:'Tavern',costs:[null,{wood:8,leather:5,gold:80},{wood:16,leather:12,gold:250}],
+    gate:[null,()=>flags.boss,()=>false],gateText:['','Defeat Old Barkfather first','Needs more of the Spicewoods (future update)'],
+    perk:['Rest and simple meals','Stronger meals, hunter\'s roast','Feasts, longest buffs']},
+  store:{name:'Storehouse',costs:[null,{wood:12,ore:6,gold:100},{wood:30,ore:15,gold:300}],
+    gate:[null,()=>flags.stage>=2,()=>flags.boss],gateText:['','Accept the Elder\'s quest first','Defeat Old Barkfather first'],
+    perk:['Bag: 20 slots','Bag: 30 slots','Bag: 40 slots']}
+};
+function upgradeOption(id){
+  const B=BUILD[id];
+  return{t:()=>{const l=baseLv(id);return l>=3?`${B.name} is at max level (Lv 3)`:`Upgrade ${B.name} to Lv ${l+1}: ${B.perk[l]}  (${costText(B.costs[l])})`},
+    fn(){
+      const l=baseLv(id);
+      if(l>=3){toast(`${B.name} is already at max level`,'#ff8070');return true}
+      if(!B.gate[l]()){toast(B.gateText[l],'#ff8070');return true}
+      if(!canPay(B.costs[l])){toast('Not enough materials','#ff8070');return true}
+      pay(B.costs[l]);flags.base[id]=l+1;Snd.level();toast(`${B.name} upgraded to Lv ${l+1}!`,'#ffe040');
+      if(id==='alch'||id==='store'||id==='smithy'||id==='tavern')save();
+      return true;
+    }};
+}
+
+// ---------- item helpers ----------
+function entries(filter,bagOnly){
+  const L=[];
+  if(!bagOnly)for(const sl of SLOTS)if(P.eq[sl]&&(!filter||filter(P.eq[sl])))L.push({it:P.eq[sl],tag:'E'});
+  for(const it of P.bag)if(!filter||filter(it))L.push({it,tag:'B'});
+  return L;
+}
+function setUp(it,n){it.bn=it.bn||it.name;it.up=n;it.name=n?`${it.bn} +${n}`:it.bn}
+function rollAffixList(ilvl,n){
+  const hero=P.hero,pool=['str','dex','int','vit','hp','armor','crit','speed','hp',hero.primary,hero.primary,hero.primary,'vit'];
+  const out=[],used=new Set();let g=0;
+  while(out.length<n&&g++<60){const k=pick(pool);if(used.has(k))continue;used.add(k);out.push({k,v:AFFDEF[k].roll(ilvl)})}
+  return out;
+}
+function salvageYield(it){
+  const r=it.r,y={ore:1+r};
+  if(r>=1)y.leather=r;if(r>=2)y.shell=r-1;if(r>=3)y.herb=r-1;if(r>=2)y.wood=r;
+  return y;
+}
+function giveItem(it){if(!addToBag(it))dropItem(P.x,P.y+10,it)}
+function back(fn){return{t:'< Back',fn(){ui=fn();return true}}}
+
+// ---------- Smithy ----------
+const FORGE=[
+  {slot:'weapon',n:'Weapon',cost:{ore:6,wood:2,leather:1}},
+  {slot:'helm',n:'Helm',cost:{ore:4,leather:2}},
+  {slot:'chest',n:'Chest armor',cost:{ore:5,leather:4}},
+  {slot:'gloves',n:'Gloves',cost:{ore:3,leather:2}},
+  {slot:'boots',n:'Boots',cost:{ore:3,leather:3}},
+  {slot:'amulet',n:'Amulet',cost:{ore:3,herb:3,shell:2}},
+  {slot:'ring',n:'Ring',cost:{ore:2,herb:2,shell:2}}
+];
+const RNAME=['Common','Fine','Rare','Epic'];
+function smithMenu(){
+  return menu(()=>`Smithy Lv ${baseLv('smithy')}`,[
+    {t:'Forge new gear',fn(){ui=forgeMenu();return true}},
+    {t:'Upgrade an item (+)',fn(){ui=upgradeMenu();return true}},
+    {t:'Reforge affixes',fn(){ui=reforgeMenu();return true}},
+    {t:'Salvage items for materials',fn(){ui=salvageMenu();return true}},
+    {t:()=>`Sell all Common and Fine items (${P.bag.filter(i=>i.r<=1).reduce((s,i)=>s+sellValue(i),0)}g)`,fn(){
+      const junk=P.bag.filter(i=>i.r<=1);if(!junk.length){toast('Nothing to sell','#ff8070');return true}
+      const g=junk.reduce((s,i)=>s+sellValue(i),0);P.bag=P.bag.filter(i=>i.r>1);P.gold+=g;Snd.coin();toast(`Sold ${junk.length} items for ${g}g`);return true}},
+    upgradeOption('smithy'),
+    {t:'Leave',fn(){}}],true,matsLine);
+}
+function forgeMenu(){
+  const lv=baseLv('smithy'),minR=Math.min(3,lv);
+  const opts=FORGE.map(f=>{
+    const cost=Object.assign({},f.cost,{gold:15+P.lvl*8});
+    return{t:()=>`${f.n}  (${costText(cost)})  ${RNAME[minR]}+`,fn(){
+      if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+      pay(cost);const it=genItem(P.lvl+1,{slot:f.slot,minR});giveItem(it);
+      Snd.level();toast(`Forged ${it.name}`,RARITY[it.r].c);return true}};
+  });
+  opts.push(back(smithMenu));
+  return menu('Forge new gear',opts,true,matsLine);
+}
+function upgradeMenu(){
+  const cap=3*baseLv('smithy');
+  const opts=entries().map(({it,tag})=>{
+    const cost=()=>({ore:2+2*(it.up||0),gold:10*((it.up||0)+1)+P.lvl*3});
+    return{t:()=>(it.up||0)>=cap?`[${tag}] ${it.name}  (max for this Smithy level)`:`[${tag}] ${it.name}  -> +${(it.up||0)+1}  (${costText(cost())})`,fn(){
+      if((it.up||0)>=cap){toast('Upgrade the Smithy for higher upgrades','#ff8070');return true}
+      const c=cost();if(!canPay(c)){toast('Not enough materials','#ff8070');return true}
+      pay(c);setUp(it,(it.up||0)+1);recalc();Snd.level();toast(`${it.name}!`,RARITY[it.r].c);return true}};
+  });
+  opts.push(back(smithMenu));
+  return menu('Upgrade which item?',opts,true,matsLine);
+}
+function reforgeMenu(){
+  const cost={herb:3,shell:2,gold:30+P.lvl*8};
+  const opts=entries(it=>it.aff.length>0).map(({it,tag})=>({
+    t:()=>`[${tag}] ${it.name}  (${costText(cost)})`,
+    fn(){if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+      pay(cost);it.aff=rollAffixList(it.ilvl,it.aff.length);recalc();Snd.spell();toast('Affixes reforged: '+it.aff.map(a=>AFFDEF[a.k].fmt(a.v)).join(', '),'#8fd0ff');return true}}));
+  if(!opts.length)opts.push({t:'(no items with affixes)',fn(){return true}});
+  opts.push(back(smithMenu));
+  return menu('Reforge which item?',opts,true,matsLine);
+}
+function salvageMenu(){
+  const opts=entries(null,true).map(({it})=>({
+    t:()=>`${it.name}  ->  ${costText(salvageYield(it))}`,
+    fn(){const y=salvageYield(it);const i=P.bag.indexOf(it);if(i<0)return true;P.bag.splice(i,1);for(const k in y)addMat(k,y[k]);Snd.coin();toast('Salvaged: '+costText(y));ui=salvageMenu();return true}}));
+  if(!opts.length)opts.push({t:'(bag is empty)',fn(){return true}});
+  opts.push(back(smithMenu));
+  return menu('Salvage which item?',opts,true,matsLine);
+}
+
+// ---------- buffs (elixirs and meals) ----------
+function addBuff(cat,name,mods,secs){
+  P.buffs=P.buffs.filter(b=>b.cat!==cat);
+  P.buffs.push({cat,name,mods,t:secs});recalc();Snd.pickup();toast(`${name} (${Math.round(secs/60)} min)`,'#8fd0ff');
+}
+
+// ---------- Alchemist ----------
+function alchMenu(){
+  const lv=()=>baseLv('alch');
+  const brew=(n,cost,label)=>({t:()=>`${label}  (${costText(cost)})   you have ${P.potions}/${potCap()}`,fn(){
+    if(P.potions+n>potCap()){toast('You cannot carry more potions','#ff8070');return true}
+    if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+    pay(cost);P.potions+=n;Snd.pickup();return true}});
+  const elixir=(cat,name,cost,mods,need)=>({t:()=>lv()<need?`${name}  (needs Alchemist Lv ${need})`:`${name}: ${Object.keys(mods(lv())).map(k=>MODLABEL[k]?MODLABEL[k](mods(lv())[k]):k).join(', ')}  (${costText(cost)})`,fn(){
+    if(lv()<need){toast(`Upgrade the Alchemist to Lv ${need}`,'#ff8070');return true}
+    if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+    pay(cost);addBuff(cat,name,mods(lv()),300);return true}});
+  return menu(()=>`Alchemist Lv ${lv()}`,[
+    {t:()=>`Buy Healing Potion  20g   (you have ${P.potions}/${potCap()})`,fn(){if(P.gold<20||P.potions>=potCap()){toast(P.potions>=potCap()?'You cannot carry more':'Not enough gold','#ff8070');return true}P.gold-=20;P.potions++;Snd.coin();return true}},
+    brew(1,{herb:2},'Brew 1 potion'),brew(5,{herb:8},'Brew 5 potions'),
+    elixir('elixir','Elixir of Might',{herb:3,shell:1},l=>({dmgPct:l>=3?30:20}),2),
+    elixir('elixir','Elixir of Stone',{herb:3,leather:1},l=>({armor:l>=3?25:15}),2),
+    upgradeOption('alch'),
+    {t:'Leave',fn(){}}],true,matsLine);
+}
+
+// ---------- Tavern ----------
+function tavernMenu(){
+  const lv=()=>baseLv('tavern'),dur=()=>300+120*(lv()-1);
+  const meal=(name,cost,mods,need)=>({t:()=>lv()<need?`${name}  (needs Tavern Lv ${need})`:`${name}: ${Object.keys(mods(lv())).map(k=>MODLABEL[k]?MODLABEL[k](mods(lv())[k]):k).join(', ')}  (${costText(cost)})`,fn(){
+    if(lv()<need){toast(`Upgrade the Tavern to Lv ${need}`,'#ff8070');return true}
+    if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+    pay(cost);addBuff('meal',name,mods(lv()),dur());return true}});
+  return menu(()=>`Tavern Lv ${lv()}`,[
+    {t:'Rest and save game (free)',fn(){P.hp=P.maxHp;P.res=0;save();toast('Fully rested. Game saved.');Snd.level();return true}},
+    meal('Spiced Stew',{gold:25,herb:2},l=>({hpPct:15+5*l,regenHp:1.5}),1),
+    meal('Autumn Cider',{gold:20,herb:1},l=>({xpPct:10+5*l}),1),
+    meal('Hunter\'s Roast',{gold:45,shell:1,leather:1},l=>({dmgPct:8+3*l,crit:4}),2),
+    upgradeOption('tavern'),
+    {t:'Leave',fn(){}}],true,matsLine);
+}
+
+// ---------- Storehouse ----------
+function storeMenu(){
+  return menu(()=>`Storehouse Lv ${baseLv('store')}`,[
+    {t:()=>`Bag capacity: ${bagCap()} slots   (you carry ${P.bag.length})`,fn(){return true}},
+    upgradeOption('store'),
+    {t:'Leave',fn(){}}],true,matsLine);
+}

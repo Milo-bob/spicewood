@@ -56,6 +56,7 @@ const MODLABEL={
   killHeal:v=>`Heal ${v}% health on kill`,heavyPct:v=>`+${v}% finisher damage`,regenHp:v=>`Regenerate ${v} HP/s`,finisherRing:v=>`Finisher releases a ring (${Math.round(v*100)}% damage)`,
   spdPct:v=>`+${v}% Move speed`,cdr:v=>`-${v}% skill cooldowns`,trapPct:v=>`+${v}% trap damage`,atkSpdPct:v=>`+${v}% Attack speed`,regenPct:v=>`+${v}% resource regen`,
   skillDmg:v=>`+${v}% skill damage`,pierce:()=>'Basic shots pierce enemies',burn:()=>'Fire skills burn enemies',freeze:()=>'Cold skills stun briefly',
+  xpPct:v=>`+${v}% experience`,
   dodge:v=>`${v}% chance to dodge hits`,rollCd:v=>`-${v}% roll cooldown`,poisonX:v=>`+${v}% poison damage`
 };
 function describeNode(n){
