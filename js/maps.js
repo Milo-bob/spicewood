@@ -275,7 +275,7 @@ function buildAmber(){
     if((t===T.GRASS||t===T.LEAF)&&r()<.03)st(m,x,y,T.SHROOM);
   }
   const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite});
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite});
   G('bat',8,17,5);G('bat',10,19,5);G('bat',9,16,5);G('shroom',11,18,5);                        // A
   G('brute',22,14,5);G('shroom',20,12,5);G('shroom',24,16,5);G('bat',21,16,5);               // B
   G('shroom',21,27,5);G('shroom',25,27,5);G('bat',23,25,5);G('brute',24,29,6);               // C: chest meadow
@@ -328,10 +328,10 @@ function buildSpore(){
   for(const[x,y]of[[16,19],[28,19],[6,17],[10,20],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
   addProp(m,'sign',20,30,{text:'The Spore Warren. Stone blocks can be pushed (walk into them), but never pulled. If a block gets stuck, leave and come back in.'});
   const c=t=>t*TS+8;
-  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite,room:rm});
+  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
   S('bat',16,19,6,false,'hall1');S('bat',28,22,6,false,'hall1');S('bat',20,22,6,false,'hall1');S('shroom',16,23,6,false,'hall1');S('shroom',28,18,6,false,'hall1');S('brute',22,20,6,false,'hall1');
   S('brute',35,18,7,false,'east2');S('brute',38,22,7,false,'east2');S('bat',36,20,7,false,'east2');S('bat',34,23,7,false,'east2');S('shroom',39,17,7,true,'east2');
-  m.spawns.push({type:'boss',variant:'mycelia',x:22*TS+8,y:5*TS,lvl:9});
+  m.spawns.push({type:'boss',variant:'mycelia',x:22*TS+8,y:5*TS,lvl:11});
   m.start={x:22*TS+8,y:31*TS};
   return m;
 }
@@ -357,7 +357,7 @@ function buildMarsh(){
   m.warps.push({x:0,y:14*TS,w:TS,h:3*TS,to:'amber',tx:51*TS,ty:28.5*TS});
   m.chests.push({id:'m1',x:44*TS+8,y:7*TS+8},{id:'m2',x:44*TS+8,y:25*TS+8},{id:'m3',x:20*TS+8,y:8*TS+8});
   const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite});
+  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
   G('bat',19,8,8);G('bat',22,10,8);G('shroom',20,11,8);G('shroom',18,10,8);
   G('brute',21,21,8);G('wolf',23,23,8);G('bat',19,24,8);
   G('brute',32,14,9,true);G('bat',34,16,9);G('bat',31,17,9);G('shroom',35,14,9);G('wolf',33,12,9);

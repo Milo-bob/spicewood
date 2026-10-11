@@ -12,6 +12,7 @@ const cam={x:0,y:0};
 const MAXLVL=15;
 const QUEST=['Talk to Elder Maren in the village','Find the Hollow Oak north of Ember Glade','Defeat Old Barkfather in the Hollow Oak','Return to Elder Maren','Cut the thorn vines at the east edge of Ember Glade','Find the Spore Warren in Amber Hollow','Wade through the flooded ford east of Amber Hollow','Explore Mistwater Marsh (Rustpeak is coming soon)'];
 const SAVE_KEY='spicewood_save_v1';
+const ZONEMUSIC={village:'village',glade:'forest',amber:'forest',marsh:'marsh',dungeon:'dungeon',spore:'dungeon'};
 const FONT='"Segoe UI",Tahoma,Verdana,Arial,sans-serif';
 
 // ---------- small helpers ----------
@@ -207,6 +208,7 @@ function loadMap(id,x,y){
   if(id==='amber'&&flags.stage>=3&&flags.stage<5)flags.stage=5;
   if(id==='marsh'&&flags.stage<7)flags.stage=7;
   DELAY=[];TRAPS=[];
+  Music.play(ZONEMUSIC[id]);
   P.x=x;P.y=y;P.dashT=0;P.rollT=0;P.att=null;P.kx=P.ky=0;
   banner={t:3,text:M.name};
   snapCam();
@@ -762,6 +764,7 @@ function updatePlay(dt){
   if(Input.hit('mute'))toast(Snd.toggle()?'Sound on':'Sound off');
 
   updateAmbient(dt);
+  Music.play(E.some(e=>e.type==='boss'&&e.state==='fight'&&!e.dead)?'boss':ZONEMUSIC[M.id]);
   if(M.id==='spore')updateBlocks(dt);
   for(const e of E)updateEnemy(e,dt);
   E=E.filter(e=>!e.dead);
@@ -778,12 +781,25 @@ function updatePlay(dt){
   const tx=M.w*TS<=W?(M.w*TS-W)/2:clamp(P.x-W/2,0,M.w*TS-W),ty=M.h*TS<=H?(M.h*TS-H)/2:clamp(P.y-H/2,0,M.h*TS-H);
   cam.x+=(tx-cam.x)*Math.min(1,dt*8);cam.y+=(ty-cam.y)*Math.min(1,dt*8);
 }
+const VOL=[0,.3,.6,.9];
+const SFXV=[0,.4,.7,1];
+function nextOf(list,v){let i=list.findIndex(x=>Math.abs(x-v)<.05);return list[(i+1)%list.length]}
 function openPause(){
   ui=menu('Paused',[
     {t:'Resume',fn(){}},
     {t:'Save game',fn(){save();toast('Game saved')}},
-    {t:()=>Snd.on?'Sound: on':'Sound: off',fn(){Snd.toggle();return true}},
-    {t:'Quit to title',fn(){save();scene='title';tsel=0;ui=null}}],true);
+    {t:()=>`Music: ${Math.round(Snd.cfg.music*100)}%`,fn(){Snd.setMusic(nextOf(VOL,Snd.cfg.music));Snd.init();return true}},
+    {t:()=>`Sound effects: ${Math.round(Snd.cfg.sfx*100)}%`,fn(){Snd.setSfx(nextOf(SFXV,Snd.cfg.sfx));Snd.menu();return true}},
+    {t:'Controls',fn(){showControls()}},
+    {t:'Quit to title',fn(){save();scene='title';tsel=0;ui=null;Music.play('title')}}],true);
+}
+function showControls(){
+  say('Controls',[
+    'Move: WASD or arrow keys. Attack: J (hit up to three times in a row for a heavy finisher). Roll: Space, you cannot be hit while rolling.',
+    'Skills: K and L (change them in the skill menu). Potion: Q. Interact, talk, open chests: E or Enter. Cut bushes, pots, logs and ore with your weapon.',
+    'Bag: I. Skills and talents: T. Pause: P. Back or close: Backspace. Mute: M. On a phone use the on-screen stick and buttons.',
+    'Tips: sealed rooms open when every enemy is defeated. Push stone blocks by walking into them. Gate items found in dungeons open new areas.'
+  ],()=>{ui=null;openPause()});
 }
 function updateFx2(dt){
   for(const f of FX){
@@ -1122,6 +1138,7 @@ function drawHUD(){
       text(names[i].split(' ')[0].slice(0,6),x+13,y+19,'#e8d8b0',5,'center');
     }
   }
+  if(P.hp<P.maxHp*.3&&!P.dead){const a=.1+.07*Math.sin(time*6);cx.fillStyle=`rgba(190,0,0,${a})`;cx.fillRect(0,0,W,6);cx.fillRect(0,H-6,W,6);cx.fillRect(0,0,6,H);cx.fillRect(W-6,0,6,H)}
   // boss bar
   for(const e of E)if(e.type==='boss'&&e.state!=='dormant'){
     bar(W/2-100,12,200,8,e.hp/e.maxHp,'#b82020');
@@ -1660,5 +1677,6 @@ function updateTouchOverlay(){
   zone.addEventListener('pointerup',end);zone.addEventListener('pointercancel',end);
 })();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&scene==='play'&&!ui&&P&&!P.dead)openPause()});
+Music.want='title';
 try{parent.postMessage({type:'ready'},'*')}catch(e){}
 requestAnimationFrame(frame);
