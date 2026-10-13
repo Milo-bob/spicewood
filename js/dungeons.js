@@ -7,12 +7,57 @@
 const CELL=16;
 const DUN_META={};
 const floorId=(spec,fi)=>fi?spec.id+'_'+(fi+1):spec.id;
+// the obstacle each dungeon item is made for: the hook and the windcharm cross a gorge, the sickle, lantern and ember glove clear thorns, the boots wade water
+const TOOLGATE={sickle:'vine',lantern:'vine',emberglove:'vine',hook:'gorge',windcharm:'gorge',boots:'water',bow:'bow'};
+const itemOf=(spec,fi)=>(spec.items||[{item:spec.item,floor:spec.itemFloor||0}]).find(q=>q.item&&q.floor===fi);
+const toolFor=(spec,fi)=>{const L=(spec.items||[{item:spec.item,floor:spec.itemFloor||0}]).filter(q=>q.item&&q.floor<=fi);return L.length?L[L.length-1].item:null};
 function floorMeta(spec,fi){const k=spec.id+'#'+fi;if(!DUN_META[k])genFloor(spec,fi);return DUN_META[k]}
 
+// ---- each dungeon moves differently: terrain fields (fields.js) fill a share of its ordinary rooms. [kind, chance per eligible room, options]
+const DGIM={
+  dungeon:[['thorn',.5,{skin:'roots'}]],
+  spore:[['gust',.5,{skin:'spore'}],['vent',.35,{skin:'steam',n:3}],['thorn',.2,{skin:'roots'}]],
+  shrine:[['crumble',.25,{}],['current',.55,{skin:'water'}],['sand',.2,{skin:'mud'}]],
+  mine:[['crumble',.3,{}],['current',.5,{skin:'belt'}],['vent',.3,{skin:'steam',n:3}]],
+  crypt:[['crumble',.3,{}],['vent',.45,{skin:'soul',n:4}],['thorn',.2,{skin:'roots'}]],
+  granary:[['crumble',.2,{}],['gust',.6,{strong:true}],['current',.35,{skin:'belt'}]],
+  forge:[['vent',.65,{n:5}],['current',.3,{skin:'belt'}]],
+  rootmaw:[['thorn',.75,{}]],
+  cellar:[['current',.5,{skin:'water'}],['sand',.3,{skin:'spice'}]],
+  sandhall:[['crumble',.3,{}],['sand',.5,{}],['gust',.35,{}]],
+  citadel:[['crumble',.25,{}],['gust',.75,{strong:true}]],
+  magmacore:[['vent',.8,{n:6}],['current',.25,{skin:'lava'}]],
+  prismvault:[['ice',.75,{}]],
+  reliquary:[['ice',.6,{}],['gust',.4,{}]]
+};
+function dungeonFields(m,spec,rooms,r,rnd){
+  const G=DGIM[spec.id];if(!G)return;
+  for(const R of rooms){
+    if(!['roam','plain','treasure','arena'].includes(R.role))continue;
+    for(const[kind,p,o]of G){
+      if(r()>=p)continue;
+      const dir=['E','W','N','S'][rnd(4)];
+      if(kind==='vent'){
+        // geysers in the room, but never on the lanes in front of the doors
+        let k=0;for(let g=0;g<30&&k<(o.n||4);g++){
+          const x=R.x1+1+rnd(Math.max(1,R.w-3)),y=R.y1+1+rnd(Math.max(1,R.h-3));
+          if(Math.abs(x+1-R.cx)<=2||Math.abs(y+1-R.cy)<=2)continue;
+          if(m.fields.some(f=>Math.abs(f.x-x)<4&&Math.abs(f.y-y)<4))continue;
+          m.fields.push({k:'vent',x,y,w:2,h:2,off:r()*3.4,skin:o.skin});k++;
+        }
+      }else if(kind==='crumble'){
+        m.fields.push({k:'crumble',x:R.x1+1,y:R.y1+1,w:R.w-2,h:R.h-2,lx:R.cx,ly:R.cy});
+      }else{
+        m.fields.push({k:kind,x:R.x1+1,y:R.y1+1,w:R.w-2,h:R.h-2,dir,off:r()*4,skin:o.skin,strong:o.strong});
+      }
+      break;
+    }
+  }
+}
 function genFloor(spec,fi){
   const nf=spec.floors,last=fi===nf-1,id=floorId(spec,fi);
   const GW=spec.grid[0],GH=spec.grid[1],EX=(DUNEXIT[spec.id]||(ensureZone(spec.zone),DUNEXIT[spec.id]))||spec.exit;
-  const r=seeded(spec.seed*7919+fi*104729+11);
+  const r=seeded(zs(spec.seed*7919+fi*104729+11));
   const rnd=n=>Math.floor(r()*n),pickr=a=>a[rnd(a.length)];
   const m=mk(id,spec.name+(nf>1?' - Floor '+(fi+1):''),GW*CELL+4,GH*CELL+4,T.DWALL);
   m.dark=true;m.dungeon=true;m.tint=spec.tint||null;m.zone=spec.zone;
@@ -59,6 +104,9 @@ function genFloor(spec,fi){
     prev=idx;locks.push({i,edge:path[idx],type:mech[i%mech.length]});
     path[idx].lock=locks[locks.length-1];
   }
+  // Link's Awakening: the dungeon's item lies in the middle of the dungeon and the last gate of its floor can only be passed with it
+  const itemHere=itemOf(spec,fi);
+  if(itemHere&&locks.length){const L=locks[locks.length-1];L.type='tool';L.tool=itemHere.item}
   const onPath=new Set();for(const e of path){onPath.add(e.a);onPath.add(e.b)}
   // ---- openers (each lies in the region reachable before its own lock)
   for(const L of locks){
@@ -68,7 +116,7 @@ function genFloor(spec,fi){
     let R=cand[0];
     if(!R){R=start;if(L.type==='plate')L.type='key'}
     L.room=R;
-    if(R!==start){R.used=true;R.role=L.type;if(L.type!=='plate'&&r()<.55)R.arena=true}
+    if(R!==start){R.used=true;R.role=L.type;if(L.type==='tool')R.arena=true;else if(L.type!=='plate'&&r()<.55)R.arena=true}
   }
   // ---- remaining rooms
   const rest=rooms.filter(R=>!R.used);
@@ -120,6 +168,19 @@ function genFloor(spec,fi){
   }
   for(const L of locks){
     const e=L.edge,t=Math.floor(glen(e)/2),tiles=slice(e,t),tag=`${spec.id}_${fi}_${L.i}`;
+    if(L.type==='tool'&&TOOLGATE[L.tool]==='bow'){
+      // the bow gate: a normal orb door, but the orb sits on a ledge behind a moat in the room in front of the door (arrows cross water)
+      L.gate=gate('lk'+L.i,'orb',null,tiles,{flag:'ob_'+tag});
+      L.moat=full.dist.get(e.a)<=full.dist.get(e.b)?e.a:e.b;
+      m.toolGate={kind:'bow',tool:'bow'};
+      continue;
+    }
+    if(L.type==='tool'){
+      const kind=TOOLGATE[L.tool]||'vine',tile={vine:T.VINE,gorge:T.GORGE,water:T.SHALLOW}[kind],g=glen(e),thick=g>=5?2:1;
+      for(let k=0;k<thick;k++)for(const[x,y]of slice(e,Math.max(0,Math.min(g-1,t-(thick>1?1:0)+k))))st(m,x,y,tile);
+      m.toolGate={kind,tool:L.tool,x:(slice(e,t)[1][0]+.5)*TS,y:(slice(e,t)[1][1]+.5)*TS};
+      continue;
+    }
     if(L.type==='key')L.gate=gate('lk'+L.i,'key',null,tiles,{flagKey:'kd_'+tag});
     else if(L.type==='plate')L.gate=gate('lk'+L.i,'plate',null,tiles,{flag:'pl_'+tag});
     else L.gate=gate('lk'+L.i,'orb',null,tiles,{flag:'ob_'+tag});
@@ -162,21 +223,41 @@ function genFloor(spec,fi){
   // locks' openers
   for(const L of locks){
     const R=L.room,tag=`${spec.id}_${fi}_${L.i}`;
+    if(L.type==='tool'){
+      if(L.moat){   // the orb on its ledge in a corner of the room before the door
+        const M2=L.moat,cs=[[M2.x1,M2.y1,1,1],[M2.x2,M2.y1,-1,1],[M2.x1,M2.y2,1,-1],[M2.x2,M2.y2,-1,-1]],[cx0,cy0,sx,sy]=cs[rnd(4)];
+        const ox=cx0+sx,oy=cy0;   // orb next to the corner brazier
+        for(const[x,y]of[[cx0,cy0],[ox,oy],[cx0,cy0+sy],[ox,oy+sy],[cx0+2*sx,oy],[cx0+2*sx,oy+sy],[ox,oy+2*sy],[cx0,cy0+2*sy],[cx0+2*sx,cy0+2*sy]])take(x,y);
+        for(const[x,y]of[[cx0+2*sx,oy],[cx0+2*sx,oy+sy],[ox,oy+2*sy],[cx0,cy0+2*sy],[cx0+2*sx,cy0+2*sy]])st(m,x,y,T.WATER);
+        addProp(m,'orb',ox,oy,{flag:L.gate.flag});
+      }
+      continue;   // otherwise its opener is the item chest of the item room (role contents)
+    }
     if(L.type==='key'){chest('key_'+tag,R,R===start?-2:2,-1,{req:R.arena?R.id:undefined})}
     else if(L.type==='orb'){
       const x=R.x2-1,y=R.y1;take(x,y);addProp(m,'orb',x,y,{flag:L.gate.flag});
     }else{
       const row=Math.max(R.y1+1,Math.min(R.y2-1,R.cy+(rnd(2)?2:-2))),bx=R.x1+2,px=Math.min(R.x2-2,bx+3+rnd(2));
-      for(let x=bx-1;x<=px+1;x++)take(x,row);
-      addProp(m,'block',bx,row);
-      m.plates.push({tx:px,ty:row,gate:L.gate.id,flag:L.gate.flag});
-      m.props.push({k:'plate',tx:px,ty:row,w:1,deco:true,flag:L.gate.flag});
+      const rows=[row];
+      if(R.h>=8&&r()<(fi>0?.65:.3))rows.push(2*R.cy-row);   // a big room: two blocks, two plates, and the gate wants both
+      for(const rw of rows){
+        for(let x=bx-1;x<=px+1;x++)take(x,rw);
+        addProp(m,'block',bx,rw);
+        m.plates.push({tx:px,ty:rw,gate:L.gate.id,flag:L.gate.flag});
+        m.props.push({k:'plate',tx:px,ty:rw,w:1,deco:true,flag:L.gate.flag});
+      }
     }
   }
   // role contents
   for(const R of rooms){
     const rid=R.id,sealed=R.arena?rid:undefined,count=Math.max(4,Math.min(9,3+Math.floor(R.w*R.h/18)+fi));
     if(R.role==='arena'||R.role==='key'&&R.arena||R.role==='orb'&&R.arena)spawn(R,count,{room:sealed,firstElite:true});
+    else if(R.role==='tool'){
+      const ms=spec.mini&&(spec.mini[fi]||spec.mini[0]),p=spot(R,2);
+      if(p&&ms)m.spawns.push({type:ms[0],x:p[0]*TS+8,y:p[1]*TS+8,lvl:lvBase+2,elite:true,room:rid,mini:ms[1]});
+      spawn(R,Math.max(2,count-3),{room:rid});
+      chest('item_'+itemHere.item,R,0,-2,{req:R.arena?rid:undefined,tier:lvBase+2});
+    }
     else if(R.role==='roam')spawn(R,R.dark?4:2+rnd(3),{type:R.dark?'bat':undefined});
     else if(R.role==='treasure'){chest('tr_'+rid,R,2,-1);spawn(R,2+rnd(2),{});}
     else if(R.role==='mini'){
@@ -209,6 +290,31 @@ function genFloor(spec,fi){
       const p=spot(R,1);if(p)addProp(m,'sign',p[0],p[1],{text:pickr(spec.lore)});
     }
   }
+  // ---- the twist of the item dungeons: secrets only the dungeon's own item can reach
+  {
+    const tl=toolFor(spec,fi),tgk=tl&&TOOLGATE[tl];
+    if(tgk&&tgk!=='bow'){
+      // alcoves in the wall of ordinary rooms: a gate of the dungeon's own obstacle (thorns, gorge, water) and a chest behind it
+      const gTile={vine:T.VINE,gorge:T.GORGE,water:T.SHALLOW}[tgk];let made=0;
+      const cand=rooms.filter(R=>!['start','boss','final','stairs','tool'].includes(R.role)).sort(()=>r()-.5);
+      for(const R of cand){
+        if(made>=2)break;
+        for(const side of(r()<.5?[1,-1]:[-1,1])){
+          const x=R.x1+2+rnd(Math.max(1,R.w-4)),y0=side<0?R.y1:R.y2,gy=y0+side,cy=y0+2*side;
+          if(Math.abs(x-R.cx)<=1)continue;
+          const ok=[[x,gy],[x,cy],[x-1,gy],[x+1,gy],[x-1,cy],[x+1,cy],[x,y0+3*side],[x-1,y0+3*side],[x+1,y0+3*side]].every(([a,b])=>gt(m,a,b)===T.DWALL);
+          if(!ok)continue;
+          st(m,x,gy,gTile);st(m,x,cy,T.DFLOOR);
+          m.chests.push({id:'zs_'+R.id,x:x*TS+8,y:cy*TS+8,tier:lvBase+1});made++;break;
+        }
+      }
+    }
+    // the lantern's dungeon: treasure sits unseen in the dark rooms until a flare lights it
+    if(tl==='lantern'){let n=0;for(const R of rooms.filter(q=>!['start','boss','final','stairs','tool'].includes(q.role)).sort(()=>r()-.5)){if(n>=2)break;const p=spot(R,1);if(p){m.chests.push({id:'zs_'+R.id+'_h',x:p[0]*TS+8,y:p[1]*TS+8,tier:lvBase+1,hidden:true});n++}}}
+  }
+  if(typeof dungeonFields==='function'&&!spec.cave)dungeonFields(m,spec,rooms,r,rnd);
+  m.layout={rooms:rooms.map(R=>({id:R.id,i:R.i,gx:R.gx,gy:R.gy,x1:R.x1,y1:R.y1,x2:R.x2,y2:R.y2,role:R.role})),
+    edges:edges.map(e=>({a:e.a.i,b:e.b.i,vert:e.vert,lock:e.lock?e.lock.type:null,tool:e.lock&&e.lock.tool||null})),GW,GH,floor:fi,floors:nf};
   DUN_META[spec.id+'#'+fi]={arrive,start:m.start,rooms:rooms.length,locks:locks.map(l=>l.type)};
   return m;
 }
@@ -217,37 +323,37 @@ function regDungeon(spec){for(let fi=0;fi<spec.floors;fi++){const f=fi;MAPS[floo
 
 // ================= The five main dungeons =================
 const DUNGEONS=[
-  {id:'dungeon',name:'The Hollow Oak',zone:'glade',seed:101,grid:[4,3],floors:2,locks:[1,2],mech:[['key'],['plate','key']],fill:.8,lvl:4,bossLvl:6,
+  {id:'dungeon',item:'sickle',name:'The Hollow Oak',zone:'glade',seed:101,grid:[4,3],floors:2,locks:[1,2],mech:[['key'],['plate','key']],fill:.8,lvl:4,bossLvl:6,
    boss:'barkfather',bossFlag:'boss',bossChest:'boss',foes:['beetle','wolf','shroom'],mini:[['wolf','Alpha Rust Wolf'],['beetle','Barkshell Guardian']],
    props:['clay','ore'],deco:'glowcap',tint:'#ecdcc0',exit:{to:'glade',tx:30*TS,ty:4.5*TS},
    hint:'The Hollow Oak. Doors seal while enemies remain. A small key opens a locked door, and a pushed block on a plate opens a heavy slab.',
    lore:['Scratched into the bark: "The Barkfather was a gentle guardian once."','A child\'s toy lies here. Someone fled in a hurry.']},
-  {id:'spore',name:'The Spore Warren',zone:'amber',seed:202,grid:[5,4],floors:2,locks:[2,3],mech:[['plate','key'],['plate','plate','key']],fill:.8,lvl:8,bossLvl:11,
+  {id:'spore',item:'boots',name:'The Spore Warren',zone:'amber',seed:202,grid:[5,4],floors:2,locks:[2,3],mech:[['plate','key'],['plate','plate','key']],fill:.8,lvl:8,bossLvl:11,
    boss:'mycelia',bossFlag:'boss2',bossChest:'boss2',foes:['bat','shroom','brute'],mini:[['brute','Sporecap Tyrant'],['brute','Mushroom Matron']],
    props:['ore','clay'],deco:'glowcap',tint:'#c0e8b0',dark:.5,exit:{to:'amber',tx:46*TS,ty:4.5*TS},
    hint:'The Spore Warren. Stone blocks can be pushed (walk into them), never pulled. If one gets stuck, leave the room and come back in.',
    lore:['The mushrooms hum. Do not breathe too deeply.','"Mother Mycelia grows with every spring." - a researcher\'s last note.']},
-  {id:'shrine',name:'The Sunken Shrine',zone:'marsh',seed:303,grid:[5,4],floors:2,locks:[2,3],mech:[['orb','key'],['orb','orb','key']],fill:.8,lvl:11,bossLvl:14,
+  {id:'shrine',item:'hook',items:[{item:'hook',floor:0},{item:'bow',floor:1}],name:'The Sunken Shrine',zone:'marsh',seed:303,grid:[5,4],floors:2,locks:[2,3],mech:[['orb','key'],['orb','orb','key']],fill:.8,lvl:11,bossLvl:14,
    boss:'drowned',bossFlag:'boss3',bossChest:'boss3',foes:['bat','shroom','wolf','brute'],mini:[['brute','Drowned Acolyte'],['wolf','Tide Hound']],
    props:['ore','clay'],deco:'glowcap',tint:'#a8c8f0',exit:{to:'marsh',tx:34*TS,ty:13*TS},
-   hint:'The Sunken Shrine. Strike a glowing orb with a weapon or an arrow to open the matching gate. Small keys open locked doors.',
+   hint:'The Sunken Shrine. Strike a glowing orb with a weapon or an arrow to open the matching gate. Some orbs sit across the water, out of reach of any blade.',
    lore:['Water drips. Somewhere, a gate remembers being closed.','"We bound her in rope and iron. It will not hold forever."']},
-  {id:'mine',name:'The Rustpeak Mine',zone:'rust',seed:404,grid:[5,4],floors:2,locks:[3,3],mech:[['plate','plate','key'],['key','plate','key']],fill:.82,lvl:14,bossLvl:17,
+  {id:'mine',item:'lantern',name:'The Rustpeak Mine',zone:'rust',seed:404,grid:[5,4],floors:2,locks:[3,3],mech:[['plate','plate','key'],['key','plate','key']],fill:.82,lvl:14,bossLvl:17,
    boss:'warden',bossFlag:'boss4',bossChest:'boss4',foes:['wolf','beetle','brute','bat'],mini:[['brute','Foreman Slag'],['wolf','Cave-in Hound']],
-   props:['ore','ore','clay'],deco:'glowcap',tint:'#f0c090',loops:.5,exit:{to:'rust',tx:50*TS,ty:4.5*TS},
-   hint:'The Rustpeak Mine. Blocks and plates, orders and keys. The old foreman left many doors locked.',
+   props:['ore','ore','clay'],deco:'glowcap',tint:'#f0c090',dark:.55,loops:.5,exit:{to:'rust',tx:50*TS,ty:4.5*TS},
+   hint:'The Rustpeak Mine. Blocks and plates, orders and keys. The old foreman left many doors locked. In the dark rooms, light shows what the shadows hide.',
    lore:['A rusted cart. The rails end in a wall of stone.','"Warden, keep the lower shafts sealed." - orders, never carried out.']},
   {id:'crypt',name:'The Ghostbark Crypt',zone:'grove',seed:505,grid:[5,4],floors:3,locks:[2,3,3],mech:[['orb','key'],['plate','orb','key'],['orb','plate','key']],fill:.82,lvl:36,bossLvl:39,
    boss:'king',bossFlag:'boss5',bossChest:'boss5',foes:['skeleton','ghost'],mini:[['skeleton','Bone Captain'],['ghost','Weeping Widow'],['skeleton','Grave Knight']],
    props:['grave','grave','clay'],deco:'glowcap',tint:'#c0b0e0',dark:.6,exit:{to:'grove',tx:44*TS,ty:4.5*TS},
    hint:'The Ghostbark Crypt. Three floors of the dead. Orbs, plates and keys will open the way down to the Hollow King.',
    lore:['The names on the stones have been scratched away.','"The king still waits for his heir." The ink is still wet.']},
-  {id:'granary',name:'The Gilded Granary',zone:'saffron',seed:606,grid:[5,4],floors:2,locks:[2,3],mech:[['key','plate'],['orb','key','plate']],fill:.82,lvl:18,bossLvl:21,
+  {id:'granary',item:'windcharm',name:'The Gilded Granary',zone:'saffron',seed:606,grid:[5,4],floors:2,locks:[2,3],mech:[['key','plate'],['orb','key','plate']],fill:.82,lvl:18,bossLvl:21,
    boss:'harvest',bossFlag:'boss7',bossChest:'boss7',foes:['wolf','bat','brute','beetle'],mini:[['brute','Scarecrow Sentinel'],['wolf','Granary Hound']],
    props:['hay','logs','clay'],deco:'glowcap',tint:'#f0e0a0',loops:.45,exit:{to:'saffron',tx:0,ty:0},
    hint:'The Gilded Granary. Every harvest is stored here, and every sack is guarded. Keys, plates and orbs lead to the Harvest King.',
    lore:['Sacks of golden grain, rotted to dust.','"The King took the last harvest and would not share it."']},
-  {id:'forge',name:'The Cinder Forge',zone:'ember',seed:707,grid:[5,4],floors:3,locks:[2,3,3],mech:[['plate','key'],['orb','plate','key'],['plate','orb','plate','key']],fill:.82,lvl:26,bossLvl:29,
+  {id:'forge',item:'emberglove',name:'The Cinder Forge',zone:'ember',seed:707,grid:[5,4],floors:3,locks:[2,3,3],mech:[['plate','key'],['orb','plate','key'],['plate','orb','plate','key']],fill:.82,lvl:26,bossLvl:29,
    boss:'cinder',bossFlag:'boss8',bossChest:'boss8',foes:['brute','skeleton','wolf','ghost','bat'],mini:[['brute','Slag Foreman'],['skeleton','Ember Knight'],['brute','Furnace Warden']],
    props:['ore','ore','brazier'],deco:'glowcap',tint:'#f0a880',loops:.5,exit:{to:'ember',tx:0,ty:0},
    hint:'The Cinder Forge. Three floors of molten machinery. Something is still hammering in the dark.',

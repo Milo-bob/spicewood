@@ -5,6 +5,12 @@
 // (the borders between regions are woven together by the world generator). Everything is seeded: the same world every time.
 const DUNEXIT={};   // dungeon id -> where its exit leads back to (world coordinates, set when the world is built)
 const GRET={};      // grotto id (zone name) -> return position
+// World seed: every save slot has its own (0 = the original world of the first release). The seed only shuffles what lies INSIDE a region and the dungeon layouts;
+// the region grid, borders, roads, gates and bosses never change. GEN_SALT mixes seed + retry attempt into every generator seed (0 = unchanged).
+let WORLD_SEED=0,GEN_SALT=0;
+const GENFAIL=[];   // reasons why the world being built is not acceptable (ensureWorld then retries with the next attempt)
+const zs=base=>GEN_SALT?Math.imul((base^GEN_SALT)>>>0,0x9E3779B1)>>>0:base;
+const PROPRULE={cutbush:{deco:true},logs:{deco:true},ore:{mul:.22},clay:{mul:.3},hay:{mul:.35},grave:{mul:.65}};
 const SIDEV={W:[1,0],E:[-1,0],N:[0,1],S:[0,-1]};   // inward direction of each cell edge
 
 const ZSPEC={
@@ -21,54 +27,70 @@ const ZSPEC={
     dungeon:{id:'spore',sign:'The Spore Warren. Mushrooms grow where nothing else can. Stone blocks can be pushed onto pressure plates...',east:true},
     pocket:{gate:'hook'},
     props:[['cutbush',70],['clay',240],['ore',200],['logs',260],['herb',220,1],['glowcap',110,1]]},
-  marsh:{name:'Mistwater Marsh',fx:'fireflies',grade:'green',ground:T.GRASS,alt:T.MOSS,altp:.4,wood:T.TREE,dens:.6,ponds:34,mist:true,camps:30,chests:10,caves:3,lvl:[9,14],foes:['bat','shroom','wolf','brute'],main:'E',seed:33,
+  marsh:{name:'Mistwater Marsh',hazards:[['sand',9,6,5,{skin:'mud'}]],fx:'fireflies',grade:'green',ground:T.GRASS,alt:T.MOSS,altp:.4,wood:T.TREE,dens:.6,ponds:34,mist:true,camps:30,chests:10,caves:3,lvl:[9,14],foes:['bat','shroom','wolf','brute'],main:'E',seed:33,
     dungeon:{id:'shrine',sign:'The Sunken Shrine. Strike the glowing orb with a weapon or arrow to raise the water gate. Small keys open locked doors.'},
     needcave:{id:'grotto_marsh',need:'lantern',text:'The burrow is pitch black. You need a light.'},
     props:[['herb',260,1],['cutbush',320],['ore',300],['logs',320],['glowcap',160,1]]},
-  rust:{name:'Rustpeak',ground:T.SCREE,alt:T.SCREE,altp:0,wood:T.CRAG,dens:.66,mist:false,camps:40,chests:12,caves:4,lvl:[12,18],foes:['wolf','beetle','brute','bat'],main:'E',seed:47,
+  rust:{name:'Rustpeak',hazards:[['vent',7,2,2,{skin:'steam'}]],ground:T.SCREE,alt:T.SCREE,altp:0,wood:T.CRAG,dens:.66,mist:false,camps:40,chests:12,caves:4,lvl:[12,18],foes:['wolf','beetle','brute','bat'],main:'E',seed:47,
     dungeon:{id:'mine',sign:'The Rustpeak Mine. Blocks, plates and keys. If a block gets stuck, leave and come back in.'},
     needcave:{id:'grotto_rust',need:'heartseed',text:'A knot of living roots seals the cave. Something here hungers for a Heartseed.'},
     props:[['ore',90],['clay',250],['logs',320],['herb',420,1],['cutbush',500]]},
-  grove:{name:'Ghostbark Grove',fx:'fireflies',ground:T.MOSS,alt:T.MOSS,altp:0,wood:T.GTREE,dens:.7,mist:true,night:true,camps:38,chests:11,caves:4,lvl:[36,39],foes:['skeleton','ghost','shroom'],main:'S',seed:59,
+  grove:{name:'Ghostbark Grove',hazards:[['thorn',8,5,4,{skin:'roots'}]],fx:'fireflies',ground:T.MOSS,alt:T.MOSS,altp:0,wood:T.GTREE,dens:.7,mist:true,night:true,camps:38,chests:11,caves:4,lvl:[36,39],foes:['skeleton','ghost','shroom'],main:'S',seed:59,
     dungeon:{id:'crypt',sign:'The Ghostbark Crypt. Three floors of the dead. The Hollow King does not forgive trespassers.'},
     props:[['grave',70],['lantern',500],['ore',380],['glowcap',130,1],['herb',420,1]]},
   heart:{name:'Heart of Spicewood',ground:T.GRASS,alt:T.LEAF,altp:.45,wood:T.TREE,dens:.68,mist:true,camps:26,chests:9,caves:3,lvl:[40,42],foes:['skeleton','ghost','brute','wolf','bat'],main:'N',seed:83,
     arena:true,
     props:[['ore',300],['logs',300],['herb',280,1],['glowcap',150,1],['cutbush',220]]},
-  saffron:{name:'Saffron Meadows',fx:'pollen',grade:'wind',ground:T.GRASS,alt:T.FLOWER,altp:.07,wood:T.TREE,dens:.5,mist:false,camps:34,chests:10,caves:4,lvl:[16,21],foes:['wolf','bat','brute','beetle'],main:'S',seed:101,tint:'#fff4c8',fields:9,
+  saffron:{name:'Saffron Meadows',hazards:[['gust',3,10,6,{path:true,dir:'across'}]],fx:'pollen',grade:'wind',ground:T.GRASS,alt:T.FLOWER,altp:.07,wood:T.TREE,dens:.5,mist:false,camps:34,chests:10,caves:4,lvl:[16,21],foes:['wolf','bat','brute','beetle'],main:'S',seed:101,tint:'#fff4c8',fields:9,
     dungeon:{id:'granary',sign:'The Gilded Granary. The harvest never ended here, and neither did the Harvest King.'},
     props:[['cutbush',180],['hay',140],['logs',300],['clay',260],['herb',200,1],['ore',420]]},
-  ember:{name:'Cinderfall Heights',fx:'ash',grade:'ash',ground:T.SCREE,alt:T.SCREE,altp:0,wood:T.CRAG,dens:.62,mist:false,camps:32,chests:10,caves:4,lvl:[25,29],foes:['brute','skeleton','wolf','ghost','bat'],main:'E',seed:131,tint:'#f4b898',braziers:22,
+  ember:{name:'Cinderfall Heights',hazards:[['vent',10,2,2],['sand',4,6,5,{skin:'ash'}]],fx:'ash',grade:'ash',ground:T.SCREE,alt:T.SCREE,altp:0,wood:T.CRAG,dens:.62,mist:false,camps:32,chests:10,caves:4,lvl:[25,29],foes:['brute','skeleton','wolf','ghost','bat'],main:'E',seed:131,tint:'#f4b898',braziers:22,
     dungeon:{id:'forge',sign:'The Cinder Forge. Something hot is still working in the dark.'},
     props:[['ore',110],['clay',260],['logs',340],['herb',460,1],['cutbush',520]]},
   // ------------------------------------------------ the seven far regions
-  tangle:{name:'Tanglewood Depths',fx:'fireflies',grade:'green',ground:T.GRASS,alt:T.LEAF,altp:.35,wood:T.JTREE,dens:.76,mist:true,camps:44,chests:13,caves:5,lvl:[28,32],foes:['thornbrute','wolf','beetle','shroom'],main:'W',seed:151,tint:'#d8f0d0',
+  tangle:{name:'Tanglewood Depths',hazards:[['thorn',10,6,5]],fx:'fireflies',grade:'green',ground:T.GRASS,alt:T.LEAF,altp:.35,wood:T.JTREE,dens:.76,mist:true,camps:44,chests:13,caves:5,lvl:[28,32],foes:['thornbrute','wolf','beetle','shroom'],main:'W',seed:151,tint:'#d8f0d0',
     dungeon:{id:'rootmaw',sign:'The Rootmaw. The roots of the Tanglewood twist down into a living cave. The Thorn Matriarch rules here.'},
     props:[['cutbush',60],['logs',200],['herb',160,1],['glowcap',120,1],['ore',360],['clay',360]]},
-  delta:{name:'Spice Delta',fx:'fireflies',mode:'islands',altp:.3,mist:true,camps:28,chests:9,caves:3,lvl:[30,34],foes:['bat','shroom','wolf','thornbrute'],main:'N',seed:171,tint:'#ffe8c8',
+  delta:{name:'Spice Delta',hazards:[['current',9,9,3,{path:true,dir:'along',oriented:true}]],fx:'fireflies',mode:'islands',altp:.3,mist:true,camps:28,chests:9,caves:3,lvl:[30,34],foes:['bat','shroom','wolf','thornbrute'],main:'N',seed:171,tint:'#ffe8c8',
     dungeon:{id:'cellar',sign:'The Great Spice Cellar. Every spice in the Spicewoods is stored here, and the Pepper Baron guards them all.'},
     props:[['herb',200,1],['cutbush',300],['ore',320],['logs',300],['glowcap',160,1]]},
-  mesa:{name:'Sunbaked Mesa',fx:'dust',grade:'hot',ground:T.SAND,alt:T.SAND,altp:0,wood:T.CACTUS,dens:.5,mist:false,camps:36,chests:11,caves:4,lvl:[32,36],foes:['sandbeetle','wolf','brute','bat'],main:'W',seed:191,tint:'#fff0d0',
+  mesa:{name:'Sunbaked Mesa',hazards:[['sand',9,6,5]],fx:'dust',grade:'hot',ground:T.SAND,alt:T.SAND,altp:0,wood:T.CACTUS,dens:.5,mist:false,camps:36,chests:11,caves:4,lvl:[32,36],foes:['sandbeetle','wolf','brute','bat'],main:'W',seed:191,tint:'#fff0d0',
     dungeon:{id:'sandhall',sign:'The Sunken Sandhall. A buried palace, half drowned in sand. The Sand Tyrant still sits on his throne.'},
     props:[['clay',120],['ore',200],['hay',320],['logs',420],['herb',500,1]]},
-  steppe:{name:'Windward Steppe',fx:'wind',grade:'wind',ground:T.GRASS,alt:T.FLOWER,altp:.05,wood:T.TREE,dens:.32,mist:false,camps:34,chests:11,caves:4,lvl:[19,24],foes:['stormbat','wolf','brute','beetle'],main:'S',seed:211,tint:'#fff4cc',
+  steppe:{name:'Windward Steppe',hazards:[['gust',8,12,6,{path:true,dir:'across'}],['gust',3,10,8,{dir:'any'}]],fx:'wind',grade:'wind',ground:T.GRASS,alt:T.FLOWER,altp:.05,wood:T.TREE,dens:.32,mist:false,camps:34,chests:11,caves:4,lvl:[19,24],foes:['stormbat','wolf','brute','beetle'],main:'S',seed:211,tint:'#fff4cc',
     dungeon:{id:'citadel',sign:'The Gale Citadel. A tower of wind and lightning. The Storm Herald waits at the top.'},
     props:[['cutbush',120],['hay',260],['logs',320],['clay',380],['herb',260,1],['ore',420]]},
-  spire:{name:'Smolder Spire',fx:'ash',grade:'ash',ground:T.ASH,alt:T.ASH,altp:0,wood:T.OBSID,dens:.5,mist:false,camps:30,chests:10,caves:4,lvl:[22,27],foes:['magmabrute','skeleton','ghost','bat'],main:'S',seed:231,tint:'#ffb090',braziers:26,
+  spire:{name:'Smolder Spire',hazards:[['vent',16,2,2]],fx:'ash',grade:'ash',ground:T.ASH,alt:T.ASH,altp:0,wood:T.OBSID,dens:.5,mist:false,camps:30,chests:10,caves:4,lvl:[22,27],foes:['magmabrute','skeleton','ghost','bat'],main:'S',seed:231,tint:'#ffb090',braziers:26,
     dungeon:{id:'magmacore',sign:'The Magma Core. The mountain\'s molten heart. The Magma Tyrant sits in a lake of fire.'},
     props:[['ore',100],['clay',280],['logs',420],['herb',520,1],['cutbush',640]]},
-  gulch:{name:'Crystal Gulch',fx:'sparkle',grade:'dream',ground:T.SCREE,alt:T.ASH,altp:.3,wood:T.CRYSTAL,dens:.52,mist:true,cold:true,camps:28,chests:9,caves:3,lvl:[34,37],foes:['crystalghost','skeleton','brute','stormbat'],main:'W',seed:251,tint:'#e8d8ff',
+  gulch:{name:'Crystal Gulch',hazards:[['ice',7,5,4],['ice',3,7,3,{path:true}]],fx:'sparkle',grade:'dream',ground:T.SCREE,alt:T.ASH,altp:.3,wood:T.CRYSTAL,dens:.52,mist:true,cold:true,camps:28,chests:9,caves:3,lvl:[34,37],foes:['crystalghost','skeleton','brute','stormbat'],main:'W',seed:251,tint:'#e8d8ff',
     dungeon:{id:'prismvault',sign:'The Prism Vault. A vault of living light. The Prism Wraith cannot leave it.'},
     props:[['glowcap',90,1],['ore',200],['lantern',420],['logs',700],['herb',600,1]]},
-  ridge:{name:'Hoarfrost Ridge',fx:'snow',grade:'cold',ground:T.SNOW,alt:T.SNOW,altp:0,wood:T.PINE,dens:.64,mist:true,cold:true,camps:38,chests:12,caves:5,lvl:[38,41],foes:['frostwolf','frostskel','ghost','brute'],main:'S',seed:271,tint:'#e0f0ff',
+  ridge:{name:'Hoarfrost Ridge',hazards:[['ice',10,6,4],['ice',6,5,4,{path:true}]],fx:'snow',grade:'cold',ground:T.SNOW,alt:T.SNOW,altp:0,wood:T.PINE,dens:.64,mist:true,cold:true,camps:38,chests:12,caves:5,lvl:[38,41],foes:['frostwolf','frostskel','ghost','brute'],main:'S',seed:271,tint:'#e0f0ff',
     dungeon:{id:'reliquary',sign:'The Frozen Reliquary. Where the Heart\'s oldest secrets are kept on ice. The Winter Warden guards them.'},
     props:[['ore',200],['logs',260],['lantern',520],['herb',700,1],['cutbush',800]]}
 };
 
+// the forecourt in front of every dungeon: scenery that fits the place (the lane right in front of the mouth stays clear)
+const PLAZA={dungeon:['logs','logs','glowcap','cutbush','logs','cutbush'],spore:['glowcap','glowcap','clay','glowcap','glowcap','glowcap'],shrine:['clay','glowcap','clay','cutbush','clay','glowcap'],
+  mine:['crate','ore','lantern','barrel','crate','lantern'],crypt:['grave','grave','brazier','grave','brazier','grave'],granary:['hay','hay','barrel','crate','hay','barrel'],
+  forge:['brazier','ore','brazier','barrel','ore','brazier'],rootmaw:['cutbush','glowcap','logs','cutbush','glowcap','cutbush'],cellar:['barrel','barrel','crate','barrel','crate','barrel'],
+  sandhall:['ore','clay','lantern','ore','clay','lantern'],citadel:['lantern','ore','lantern','crate','lantern','ore'],magmacore:['brazier','ore','brazier','ore','brazier','ore'],
+  prismvault:['glowcap','lantern','glowcap','ore','glowcap','lantern'],reliquary:['lantern','grave','lantern','ore','lantern','grave']};
+const PLAZA_DECO=new Set(['logs','glowcap','cutbush']);
+function dungeonPlaza(m,id,dx,dy,owned){
+  const list=PLAZA[id];if(!list)return;
+  const spots=[[-5,-1],[4,-1],[-6,3],[5,3],[-5,6],[4,6]];
+  spots.forEach(([ox,oy],i)=>{
+    const x=dx+ox,y=dy+oy,t=gt(m,x,y);
+    if(t<0||SOLID[t]||t===T.PATH||t===T.OAK||!owned(x,y)||m.props.some(q=>q.tx===x&&q.ty===y))return;
+    if(PLAZA_DECO.has(list[i]))addDeco(m,list[i],x,y);else addProp(m,list[i],x,y);
+  });
+}
 // ---------- one region on its own local map ----------
 function genZoneLocal(z,WX){
   const S=ZSPEC[z],cell=WX.cell[z],PAD=WX.PAD,zi=WX.zi[z];
-  const CW=cell.w,CH=cell.h,LW=CW+2*PAD,LH=CH+2*PAD,ox=cell.x-PAD,oy=cell.y-PAD,r=seeded(S.seed);
+  const CW=cell.w,CH=cell.h,LW=CW+2*PAD,LH=CH+2*PAD,ox=cell.x-PAD,oy=cell.y-PAD,r=seeded(zs(S.seed));
   const rnd=n=>Math.floor(r()*n),pk=a=>a[rnd(a.length)],ri=(a,b)=>a+r()*(b-a);
   const isle=S.mode==='islands';
   const owned=(x,y)=>{const wx=Math.floor(x)+ox,wy=Math.floor(y)+oy;return wx>=0&&wy>=0&&wx<WX.w&&wy<WX.h&&WX.own[wy*WX.w+wx]===zi};
@@ -116,7 +138,7 @@ function genZoneLocal(z,WX){
       const d=Math.hypot(x-main.x,y-main.y);
       if(!best||d>best[2])best=[x,y,d];
     }
-    if(!best)best=[PAD+Math.round(CW/2),PAD+Math.round(CH/2),0];
+    if(!best){best=[PAD+Math.round(CW/2),PAD+Math.round(CH/2),0];GENFAIL.push(z+': no room for the dungeon')}
     dun=addNode(best[0],best[1],isle?5.2:4.6,'dungeon');
   }
   const minD=isle?11:12.5;
@@ -127,6 +149,7 @@ function genZoneLocal(z,WX){
     if(!p)continue;
     addNode(p[0],p[1],rad,'camp');
   }
+  if(nodes.filter(n=>n.kind==='camp'&&!n.gate).length<S.camps*.85)GENFAIL.push(z+': too few camps');
   // ---------------- graph (two halves when a wall splits the region)
   const mid=(a,b)=>{const d=Math.hypot(a.x-b.x,a.y-b.y);return[(a.x+b.x)/2+ri(-.16,.16)*d,(a.y+b.y)/2+ri(-.16,.16)*d]};
   const pathCache=new Map(),okCache=new Map();
@@ -199,6 +222,7 @@ function genZoneLocal(z,WX){
     else{polyline(m,[[base.x,base.y],[x,y]],(px,py)=>disc(m,px,py,2.2,ground,t=>t===wood||t===T.ROCK));disc(m,x,y,n.r,ground,t=>t===wood||t===T.ROCK);polyline(m,[[base.x,base.y],[x,y]],(px,py)=>disc(m,px,py,1.1,T.PATH))}
     nooks.push(n);k++;
   }
+  if(nooks.length<S.chests-1)GENFAIL.push(z+': too few chest nooks');
   // ponds (bog regions): irregular pools with a shallow rim, kept clear of every clearing and path
   if(S.ponds){
     const track=[];
@@ -231,6 +255,7 @@ function genZoneLocal(z,WX){
     placeMouth(dx,dy,S.dungeon.id);
     DUNEXIT[S.dungeon.id]={to:'world',tx:(dx+ox)*TS,ty:(dy+2+oy)*TS+8};
     addProp(m,'sign',dx+2,dy+1,{text:S.dungeon.sign});
+    dungeonPlaza(m,S.dungeon.id,dx,dy,owned);
     (m.reserve=m.reserve||[]).push([dx-3,dy-1,dx+3,dy+4]);
   }
   // region NPC next to the waypoint and lore tomes in some of the camps
@@ -249,6 +274,16 @@ function genZoneLocal(z,WX){
       const n=camps.splice(rnd(camps.length),1)[0],tx=Math.round(n.x),ty=Math.round(n.y);
       addProp(m,'tome',tx,ty,{id:z+'_'+i});n.hasTome=true;
     }
+  }
+  // the forgotten tree of the region (picked without the random generator, so old worlds keep their layout)
+  if(typeof FTREE!=='undefined'&&FTREE[z]){
+    const camps=nodes.filter(n=>n.kind==='camp'&&!n.gate&&!n.hasTome);
+    if(camps.length){const n=camps[(S.seed*7)%camps.length];addProp(m,'ftree',Math.round(n.x),Math.round(n.y),{zone:z});n.hasTome=true}
+  }
+  // a spice plant of the region (also picked without the random generator; not placed again once it has been found)
+  if(typeof SPICE!=='undefined'&&SPICE[z]&&!spiceHave(SPICE[z].id)){
+    const camps=nodes.filter(n=>n.kind==='camp'&&!n.gate&&!n.hasTome);
+    if(camps.length){const n=camps[(S.seed*5+3)%camps.length];addProp(m,'spice',Math.round(n.x),Math.round(n.y),{id:SPICE[z].id,use:'spice'});n.hasTome=true}
   }
   // pocket (hidden gated cave): an L-shaped corridor through untouched forest, starting at a clearing
   if(S.pocket){
@@ -274,6 +309,7 @@ function genZoneLocal(z,WX){
       GRET[z]={tx:G.rx+ox*TS,ty:G.ry+oy*TS};
       break;
     }
+    if(!GRET[z])GENFAIL.push(z+': no room for the pocket cave');
   }
   // gated cave in an existing clearing (lantern burrow / heartseed vault)
   if(S.needcave){
@@ -285,18 +321,24 @@ function genZoneLocal(z,WX){
       placeMouth(mx,my,S.needcave.id,{need:S.needcave.need,needText:S.needcave.text,back:{x:(mx+ox)*TS,y:(my+2+oy)*TS}});
       GRET[z]={tx:(mx+ox)*TS,ty:(my+2+oy)*TS};
       (m.reserve=m.reserve||[]).push([mx-3,my-1,mx+3,my+4]);
-    }
+    }else GENFAIL.push(z+': no clearing for the gated cave');
   }
   // arena (Heart of Spicewood): the Heartwood sleeps in the middle
   if(arena){
     const ax=Math.round(arena.x),ay=Math.round(arena.y);
     disc(m,ax,ay,1.6,T.PATH);
-    for(const[dx,dy]of[[-7,-4],[7,-4],[-7,5],[7,5],[0,-8]])addProp(m,'brazier',ax+dx,ay+dy);
-    m.spawns.push({type:'boss',variant:'heartwood',x:ax*TS+8,y:(ay-4)*TS,lvl:42});
+    for(const[dx,dy]of[[-7,-4],[7,-4],[-7,5],[7,5]])addProp(m,'brazier',ax+dx,ay+dy);
+    // the great tree that holds the Heart: it stands behind the arena, its trunk is solid
+    disc(m,ax,ay-9,4.5,T.GRASS);
+    addProp(m,'worldtree',ax,ay-9);
+    for(const[dx,dy]of[[-1,0],[1,0],[-1,-1],[0,-1],[1,-1]])st(m,ax+dx,ay-9+dy,T.BLOCK);
+    m.spawns.push({type:'boss',variant:'heartwood',x:ax*TS+8,y:(ay-9)*TS+1,lvl:42,mx:ax*TS+8,my:(ay-4)*TS});   // the Heart sits in the trunk; Maren later steps out into the arena
     m.after={flag:'boss16',chest:'boss16',cx:ax+ox,cy:ay-7+oy,wx:ax-1+ox,wy:ay+2+oy,to:'world',tx:WX.heartReturn.x,ty:WX.heartReturn.y};
-    (m.reserve=m.reserve||[]).push([ax-9,ay-9,ax+9,ay+9]);
+    (m.reserve=m.reserve||[]).push([ax-9,ay-14,ax+9,ay+9]);
     arena.noSpawn=true;
   }
+  // ---------------- set pieces (spots.js): rune trial, landmark, secret nooks. Own random stream.
+  if(typeof placeSpots==='function')placeSpots({m,z,S,nodes,edges,pathOf,owned,ox,oy,lvAt,rs:seeded(zs(S.seed*977+31))});
   // ---------------- encounters
   const pset=new Set(m.props.map(p=>p.ty*LW+p.tx));
   const grp=(n,count,o)=>{
@@ -345,9 +387,12 @@ function genZoneLocal(z,WX){
   const nearExit=(x,y)=>{for(const n of nodes)if(n.kind==='exit'&&Math.hypot(x-n.x,y-n.y)<6)return true;return false};
   const avoid=(x,y)=>nearExit(x,y)||m.spawns.some(s=>Math.hypot(s.x/TS-x,s.y/TS-y)<1.6)||m.chests.some(c=>Math.hypot(c.x/TS-ox-x,c.y/TS-oy-y)<2.2);
   const area=CW*CH,okOwn=(x,y)=>owned(x,y);
-  for(const[k,per,deco]of S.props)scatter(m,r,Math.floor(area/per),k,okOwn,avoid,!!deco);
+  // Zelda rules for scenery: grass and fallen logs can be walked through (and grass cut), rocks and pots are rare and never in the way
+  for(const[k,per,deco]of S.props){const rule=PROPRULE[k]||{};scatter(m,r,Math.floor(area/per*(rule.mul||1)),k,okOwn,avoid,!!deco||!!rule.deco)}
   if(S.braziers)scatter(m,r,S.braziers,'brazier',okOwn,avoid);
   if(S.altp&&S.alt===T.FLOWER){for(let n=0;n<area/45;n++){const x=PAD+rnd(CW),y=PAD+rnd(CH);if(gt(m,x,y)===T.GRASS&&owned(x,y)&&!avoid(x,y))st(m,x,y,T.FLOWER)}}
+  // terrain hazards of the region (fields.js); own random stream so the rest of the region does not change
+  if(S.hazards&&typeof placeHazards==='function'){const rh=seeded(zs(S.seed*131+17));placeHazards(m,z,S,nodes,edges,pathOf,owned,rh)}
   if(typeof registerCaves==='function')registerCaves(z);
   return{z,m,nodes,linkNodes,ox,oy,zi,S,isle,wood};
 }

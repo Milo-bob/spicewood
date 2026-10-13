@@ -2,15 +2,15 @@
 // ================= Quests: one per region NPC, a repeatable bounty board, elite modifiers, New Game+ =================
 const QDEFS={
   glade:{id:'q_glade',name:'Beetle Trouble',type:'kill',target:'beetle',count:10,ask:['The beetles are eating my kindling, and my kindling is my living. Could you thin them out?','Ten Ember Beetles should do it.'],turn:'Ten fewer beetles! My woodpile thanks you.'},
-  amber:{id:'q_amber',name:'The Herbalist\'s Order',type:'collect',target:'herb',count:12,ask:['I need twelve herbs for a spore remedy. The forest is full of them, but I cannot walk safely anywhere.'],turn:'Twelve herbs, fresh. This will help many people.'},
+  amber:{id:'q_amber',name:'Sporecap Trouble',type:'kill',target:'shroom',count:12,ask:['The Nutmeg Shroomlings trample my remedy beds, and I cannot walk to my herbs safely. Please clear out twelve of them.'],turn:'Twelve fewer shroomlings. My remedy beds are safe again.'},
   marsh:{id:'q_marsh',name:'Night Wailers',type:'kill',target:'bat',count:10,ask:['The bats come at night and scare the reeds out of the water. Please drive ten of them off.'],turn:'It is quieter already. Thank you.'},
-  rust:{id:'q_rust',name:'Ore for the Forge',type:'collect',target:'ore',count:15,ask:['The shafts are closed and my supplies are low. Bring me fifteen pieces of ore and I will make it worth your while.'],turn:'Fifteen pieces of ore! The forge will sing tonight.'},
+  rust:{id:'q_rust',name:'Pests of the Shafts',type:'kill',target:'beetle',count:15,ask:['Beetles have taken over the old shafts and nobody can reach the ore. Clear out fifteen of them and I will make it worth your while.'],turn:'Fifteen beetles gone. The shafts are ours again.'},
   grove:{id:'q_grove',name:'Restless Dead',type:'kill',target:'skeleton',count:10,ask:['I keep burying the same bones. Lay ten of the Grave Walkers to rest for good.'],turn:'Ten graves less to dig. May they sleep.'},
   heart:{id:'q_heart',name:'The Hermit\'s Peace',type:'kill',target:'*',zone:'heart',count:15,ask:['The creatures here disturb the Heart. Defeat fifteen of them within the Heart of Spicewood.'],turn:'The Heart rests easier. Thank you, hero.'},
-  saffron:{id:'q_saffron',name:'Leather for the Harness',type:'collect',target:'leather',count:10,ask:['My plough harness has rotted through. Ten pieces of leather would set it right.'],turn:'Leather, and good quality. The oxen will be pleased.'},
-  ember:{id:'q_ember',name:'Cold Forge',type:'collect',target:'ore',count:20,ask:['I am trying to relight the old forge. Twenty pieces of ore would give me a start.'],turn:'Twenty. Now we will see if the fire still remembers.'},
+  saffron:{id:'q_saffron',name:'Wolves at the Fence',type:'kill',target:'wolf',count:10,ask:['Wolves keep chewing through my plough harness at night. Put ten of them down and the oxen can rest.'],turn:'Ten wolves fewer. The oxen will be pleased.'},
+  ember:{id:'q_ember',name:'Cold Forge',type:'kill',target:'skeleton',count:12,ask:['I am trying to relight the old forge, but the Ash Knights keep stamping out the coals. Lay twelve of them to rest.'],turn:'Twelve down. Now we will see if the fire still remembers.'},
   tangle:{id:'q_tangle',name:'Thornback Hunt',type:'kill',target:'thornbrute',count:6,ask:['Thornback Brutes are trampling the trail. Take down six of them and the road is safe again.'],turn:'Six brutes down! The trail is ours.'},
-  delta:{id:'q_delta',name:'Spice Run',type:'collect',target:'herb',count:15,ask:['The Baron\'s men took my stock. I need fifteen herbs to blend a new batch, and I will pay you well.'],turn:'Fifteen herbs! The blend smells wonderful.'},
+  delta:{id:'q_delta',name:'Spice Run',type:'kill',target:'shroom',count:15,ask:['Cinnamon sprites have eaten my stock. Chase fifteen of them off and I will blend you something special.'],turn:'Fifteen sprites fewer! The blend smells wonderful.'},
   mesa:{id:'q_mesa',name:'Dune Beetle Plague',type:'kill',target:'sandbeetle',count:10,ask:['Dune Beetles have chewed through my tents. Please rid the mesa of ten of them.'],turn:'Ten beetles gone. My tents survive another season.'},
   steppe:{id:'q_steppe',name:'Sheep-Snatchers',type:'kill',target:'stormbat',count:10,ask:['Storm Bats carry my lambs off. Bring me the heads of ten of them. Or whatever is left.'],turn:'The flock sleeps well tonight.'},
   spire:{id:'q_spire',name:'Slag Brutes',type:'kill',target:'magmabrute',count:6,ask:['The Magma Brutes crawl up from the lower tunnels. Kill six of them, and we may cross the Spire safely.'],turn:'Six brutes cooled. The Spire breathes easier.'},
@@ -20,21 +20,19 @@ const QDEFS={
 const qDefOf=id=>{for(const z in QDEFS)if(QDEFS[z].id===id)return QDEFS[z];return null};
 const qLevel=q=>{const z=Object.keys(QDEFS).find(k=>QDEFS[k]===q);return ZSPEC[z]?Math.round((ZSPEC[z].lvl[0]+ZSPEC[z].lvl[1])/2):10};
 function qState(q){return flags.q&&flags.q[q.id]}
-function qDoneCheck(q,st){return q.type==='collect'?(P.mats[q.target]||0)>=q.count:st.p>=q.count}
+function qDoneCheck(q,st){return st.p>=q.count}
 function qProgress(q,st){
-  const n=q.type==='collect'?Math.min(q.count,P.mats[q.target]||0):Math.min(q.count,st.p||0);
-  const what=q.type==='collect'?(MATS[q.target]?MATS[q.target].n:q.target):(q.target==='*'?'creatures':(ENEMIES[q.target]?ENEMIES[q.target].name:q.target));
-  return`${q.type==='collect'?'Bring':'Defeat'} ${what}: ${n}/${q.count}`;
+  const n=Math.min(q.count,st.p||0);
+  const what=q.target==='*'?'creatures':(ENEMIES[q.target]?ENEMIES[q.target].name:q.target);
+  return`Defeat ${what}: ${n}/${q.count}`;
 }
 function claimQuest(q,st){
   const L=qLevel(q);
-  if(q.type==='collect')P.mats[q.target]-=q.count;
   st.s=2;
-  const gold=L*30,xp=L*40;
-  P.gold+=gold;gainXp(xp);
-  dropGem(P.x+10,P.y+6,rollGem(L));dropCons(P.x-10,P.y+6,randomCons());
-  if(Math.random()<.5)giveItem(genItem(L+1,{minR:2}));
-  Snd.level();toast(`Quest complete: ${q.name}! +${gold}g, +${xp} xp`,'#f0d890');save();
+  const gold=L*30;
+  P.gold+=gold;
+  if(P.potions<potCap())P.potions++;
+  Snd.level();toast(`Quest complete: ${q.name}! +${gold}g and a potion`,'#f0d890');save();
 }
 // returns true when the NPC conversation was a quest conversation
 function znQuest(n){
@@ -64,7 +62,7 @@ function questKill(e){
 }
 function activeQuestLines(){
   const L=[];
-  if(flags.q)for(const z in QDEFS){const q=QDEFS[z],st=flags.q[q.id];if(st&&st.s===1&&L.length<2)L.push(`${q.name}: ${q.type==='collect'?Math.min(q.count,P.mats[q.target]||0):Math.min(q.count,st.p||0)}/${q.count}`)}
+  if(flags.q)for(const z in QDEFS){const q=QDEFS[z],st=flags.q[q.id];if(st&&st.s===1&&L.length<2)L.push(`${q.name}: ${Math.min(q.count,st.p||0)}/${q.count}`)}
   const b=flags.bounty;if(b&&!b.done)L.push(`Bounty: ${b.name} ${b.p}/${b.count}`);else if(b&&b.done)L.push('Bounty ready: claim it in Hearthmoor');
   return L;
 }
@@ -85,12 +83,12 @@ function useBoard(){
   const b=flags.bounty;
   if(!b){
     const opts=bountyOptions();
-    ui=menu('Bounty board: choose a contract',opts.map(o=>({t:`Defeat ${o.name}  -  ${o.gold}g + a gem`,fn(){flags.bounty=o;toast('Bounty accepted','#f0d890');Snd.pickup();save()}})).concat([{t:'Leave',fn(){}}]),true);
+    ui=menu('Bounty board: choose a contract',opts.map(o=>({t:`Defeat ${o.name}  -  ${o.gold}g`,fn(){flags.bounty=o;toast('Bounty accepted','#f0d890');Snd.pickup();save()}})).concat([{t:'Leave',fn(){}}]),true);
     return;
   }
   if(b.done){
-    say('Bounty board',[`Contract fulfilled: ${b.name}. Payment: ${b.gold} gold and a gem.`],()=>{
-      P.gold+=b.gold;dropGem(P.x+8,P.y+6,rollGem(b.lvl+4));gainXp(Math.round(b.gold*.4));if(Math.random()<.35)giveItem(genItem(b.lvl+1,{minR:2}));
+    say('Bounty board',[`Contract fulfilled: ${b.name}. Payment: ${b.gold} gold.`],()=>{
+      P.gold+=b.gold;
       flags.bounty=null;Snd.level();toast(`Bounty paid: +${b.gold}g`,'#f0d890');save();
     });
     return;
@@ -109,10 +107,10 @@ function applyEliteMod(e){
 
 // ---------- New Game+ ----------
 function ngpAvailable(){return slots().some(i=>i&&i.won)}
-function startNgPlus(slot){
-  if(!loadGame(slot)){toast('Could not load save');return}
-  const keep={lore:flags.lore,fruits:flags.fruits,base:flags.base,ngp:(flags.ngp||0)+1,won:true,trueEnd:flags.trueEnd,
-    sickle:true,boots:true,hook:true,lantern:true,heartseed:true,windcharm:true,emberglove:true,heraldwing:true,slagwalkers:true,briarkey:true,dunegoggles:true,sunstone:true,truthglass:true,oathcrown:true,wp:flags.wp,seen:flags.seen,stage:32,rewarded:true,midShown:true,letters:Object.fromEntries(LETTERS.map((_,i)=>[i,true]))};
+function startNgPlus(slot,seed){   // seed: the new world of this run (New Game+ never reuses the old one)
+  if(!loadGame(slot,seed===undefined?newWorldSeed():seed)){toast('Could not load save');return}
+  const keep={spice:flags.spice,meals:flags.meals,tr:flags.tr,trStarted:flags.trStarted,fairBest:flags.fairBest,fairMet:flags.fairMet,fairIntro:flags.fairIntro,cookIntro:flags.cookIntro,lore:flags.lore,fruits:flags.fruits,ftrees:flags.ftrees,satchel:flags.satchel,scrolls:flags.scrolls,jar:flags.jar,base:flags.base,ngp:(flags.ngp||0)+1,won:true,trueEnd:flags.trueEnd,
+    sickle:true,boots:true,hook:true,bow:true,lantern:true,heartseed:true,windcharm:true,emberglove:true,heraldwing:true,slagwalkers:true,briarkey:true,dunegoggles:true,sunstone:true,truthglass:true,oathcrown:true,wp:flags.wp,seen:flags.seen,sc:flags.sc,bond:flags.bond,charm:flags.charm,lia:flags.lia,stage:32,rewarded:true,midShown:true,letters:Object.fromEntries(LETTERS.map((_,i)=>[i,true]))};
   flags=Object.assign(defaultFlags(),keep);
   P.keys=0;
   scene='play';ui=null;

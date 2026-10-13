@@ -10,15 +10,16 @@ const STORY={
     ranger:['Sylva grew up under these trees. She knows every path, every bird.','When the leaves began to rot from the inside, she understood that the forest was dying. And nobody else was listening.'],
     mage:['Merin has read about the Heart of Spicewood in a dozen forgotten books.','The blight is no plague, he is certain. It is a symptom.','He has come to find out what it is a symptom of.'],
     rogue:['Vex came to Hearthmoor for the spice trade and for rumours of a tree whose sap is worth a king\'s ransom.','Then the blight spread, and the rumours turned into something else.'],
-    common:['Hearthmoor, a village on the edge of the Spicewoods. Autumn, as always.','But the woods are wrong. The leaves rot from the inside, and the old guardians of the forest have turned on the roads.','Elder Maren has called for a hero. In forty years she has never asked the village for anything.']
+    common:['The old stories say the Spicewoods was once a single forest, from the sea to the snow. Today it is desert, glass, marsh and ice. Nobody in Hearthmoor can say why.','Hearthmoor, a village on the edge of the Spicewoods. Autumn, as always.','But the woods are wrong. The leaves rot from the inside, and the old guardians of the forest have turned on the roads.','Elder Maren has called for a hero. In forty years she has never asked the village for anything.']
   },
-  mid:['The Rust Warden falls, and a tremor runs through the earth.','Far away, deep in the forest, something groans like a sleeper turning over.','Every guardian you have defeated spoke of the Heart. None of them spoke of the blight as an enemy.','Maren\'s letters call the guardians locks that must be opened. But locks do not weep when they open.'],
+  mid:['The Rust Warden falls, and a tremor runs through the earth.','Far away, deep in the forest, something groans like a sleeper turning over.','Between the rocks you notice a ringed stump. Wood grew here once. Perhaps everywhere. Perhaps the land was not always like this.','Every guardian you have defeated spoke of the Heart. None of them spoke of the blight as an enemy.','Maren\'s letters call the guardians locks that must be opened. But locks do not weep when they open.'],
   finale:['Maren falls. The golden roots let go of her, and the Heartseed rolls across the moss to your feet.','MAREN: "Nine generations... for what? A stew pot."','The Heart takes back what it is owed. The roots draw her down gently, the way one carries a sleeping child. She is not a monster now. Only tired.','You press the Heartseed into the soil. The Heartseed was never a key. It was a promise.','Light runs down every root. Across the Spicewoods the blight fades, and fourteen guardians dream at last. Hearthmoor will plant its harvests again, and take only what the forest gives.','THE END. The far lands are open, hero. Roam freely.'],
   charter:['The Cinder Colossus kneels. Behind its furnace door, wrapped in oilcloth, lies a charter pressed in copper: THE OATH OF HEARTHMOOR.','Seven names are hammered under it: Corwin Ashgrove, Halvard, Sorrel Pike, Wren Dunmore, Ysolt Vane, Pell Cardamon, and Edda Maren.','Beneath the oath someone added a second plate: THE TITHE. One part in three of the Heart\'s sap, owed to Hearthmoor, every year, for ever. Signed: Edda Maren.','You know that name. It hangs over the elder\'s door in Hearthmoor. You had never thought about it before.'],
   mirror:['The Prism Wraith shatters, and one shard stays lit. It shows a room you know: the elder\'s cellar in Hearthmoor, barrel upon barrel of Heart-sap.','Maren stands among them with a ledger. "Fourteen guardians," she says to nobody. "Nine have fallen. The hero is better than I dared hope. Soon there will be nothing left between me and the tap."','The shard goes dark. Maren\'s letters always arrived so quickly. Now you understand why: she never needed to ask how you were.'],
   founder:['The Hollow King does not rise. Corwin Ashgrove, first of the seven, stands in the dust of his crown. He speaks in a voice like dry leaves.','"Protect, never take. That was the oath. I kept the first half until I forgot everything else. Edda kept the second half in her ledger, and called it the Tithe. The shame is ours."','"The Maren line has fed on the Heart for nine generations. The last of them sends heroes to cut the Heart\'s chains, so that nothing stands between her and the sap."','He presses the Oathcrown into your hands. "Go to the Hoarfrost Ridge. My last guardian keeps the Heart\'s last seed. Plant it. Do not give it to her."'],
   warden:['The Winter Warden\'s crown melts, and beneath the ice you find the Heart\'s last secret: a single seed, still green.','The Heartseed was never a key. It was a promise.','"She comes behind you," the Warden whispers. "She has been behind you all along. Plant it, hero. Quickly."'],
-  betrayal:['The Frozen Roots part, and the Heart of Spicewood opens before you: warm, golden, trembling. The Heartseed hums in your pack.','Someone is waiting at the foot of the great tree: Elder Maren, a lantern in her hand, and behind her a hundred men in Hearthmoor grey. The Tithe Guard.','MAREN: "You did it, my dear. Fourteen guardians, and not one left to stand between the Heart and the village. I could never have done it without you."','MAREN: "Now the seed, please. If it takes root the Heart will heal, and a healed Heart gives nothing. I will bind myself to it as the founders did, and Hearthmoor will never be hungry again."','@REACTION','You refuse. The Tithe Guard strike you down, and the Heartseed is torn from your pack.','MAREN: "Thank you for everything. Truly." She drives a silver spigot into the great root, and the Heart screams.','The Heartwood wakes in agony. You drag yourself up. The Heart\'s fever is a living wall, and Maren is on the other side of it.'],
+  turning:['The Frozen Roots part, and the Spicewoods fall silent. Ahead stands a tree so vast that its canopy is its own sky.','In its trunk, behind bark like folded hands, a golden light beats. That is the Heart. The tree is its body, and every root in the forest is a vein.','The light touches your hand, and the roots remember. You see the Spicewood as it was: one wood, unbroken, from the sea to the snow.','Then the harvests began. The Heart grew tired. Where it fell silent, the land forgot what it was: dry here, frozen there, glass beneath the hills.','The Great Turning. Nothing was destroyed. Everything was only forgotten. The desert, the plains, the crystal caves: all of them were forest once.'],
+  betrayal:['Warm, golden and trembling, the Heart of Spicewood lies open before you. The Heartseed hums in your pack.','Someone is waiting at the foot of the great tree: Elder Maren, a lantern in her hand, and behind her a hundred men in Hearthmoor grey. The Tithe Guard.','MAREN: "You did it, my dear. Fourteen guardians, and not one left to stand between the Heart and the village. I could never have done it without you."','MAREN: "Now the seed, please. If it takes root the Heart will heal, and a healed Heart gives nothing. I will bind myself to it as the founders did, and Hearthmoor will never be hungry again."','@REACTION','You refuse. The Tithe Guard strike you down, and the Heartseed is torn from your pack.','MAREN: "Thank you for everything. Truly." She drives a silver spigot into the great root, and the Heart screams.','The Heartwood wakes in agony. You drag yourself up. The Heart\'s fever is a living wall, and Maren is on the other side of it.'],
   bind:['The Heartwood sags, and for a moment the blight lifts. Then Maren walks into the light, the silver spigot in one hand and the Heartseed in the other.','MAREN: "So close. The Heart has no strength left to fight me." She presses the spigot to her own chest. Roots lash around her, and she rises, wreathed in sap and gold.','MAREN: "I am the Heart now. Every drop of the Spicewoods will be mine. And you will be a story the village tells at supper."'],
   reaction:{warrior:'BRANN: "You pulled me out of that river so that I could drown a forest for you?"',ranger:'Sylva says nothing. She nocks an arrow, and her hand does not shake.',mage:'MERIN: "A symptom. I should have known it was a symptom of greed."',rogue:'VEX: "Never a price named, never a contract. I should have known from the first letter."'},
   epi:{warrior:'Brann returns to the plough. He keeps Maren\'s letters in a drawer, and never answers them, and never burns them.',ranger:'Sylva walks the quiet paths. The birds are back before the first snow.',mage:'Merin writes one sentence in his book: "The symptom was us."',rogue:'Vex keeps a single jar of Heart-sap, unopened, as a reminder of a price nobody ever paid.'},
@@ -28,38 +29,48 @@ const STORY={
 const ELDER_MID=['The Rust Warden is scrap, and you carry the Miner\'s Lantern. A black tunnel dives under the gorge north of Ember Glade. Saffron Meadows lies beyond. Hurry, hero.','Saffron Meadows... the Harvest King keeps the granary. Bring him down before the harvest rots.','The Windcharm! A wind pass north of Saffron leads to the Windward Steppe. The Storm Herald waits at the top of his citadel.','The Gale Citadel. The wind there carries news to every corner of the world. Be careful what it says about you.','The Heraldwing! The road west climbs to the Smolder Spire. A tyrant of fire sits at its core.','The Magma Tyrant fell? Good. Slagwalkers will carry you south to Cinderfall Heights.','Cinderfall, the forge of old. The Colossus must stop before the fires go out.','The Ember Glove. It can burn the thorn wall east of Ember Glade. The Tanglewood is wild, so go carefully.','The Thorn Matriarch rules the Rootmaw. Her children are everywhere.','A Briar Key. South of the Tanglewood lies the Spice Delta, where the Baron hoards the world\'s spice.','The Pepper Baron\'s cellar. Spice, hero. Bring me a taste of it when you are done.','Dune Goggles! East of Saffron Meadows a sandstorm rages. The Mesa is beyond it.','The Sunken Sandhall. A king with a crown of roots sits there still.','A Sunstone. It will part the crystal veil north of the Mesa. Crystal Gulch awaits.','The Prism Vault. The Wraith cannot leave it. Be quick, hero. Time is short.','A Truthglass. The old miners spoke of a hidden door north of Rustpeak. Ghostbark Grove is beyond it.','The Ghostbark Crypt. The Hollow King has waited a long time for someone to kneel to him.','The Oathcrown! West of the Smolder Spire the gate of black ice will know it. The Hoarfrost Ridge is the last stop before the Heart.','The Frozen Reliquary. The Winter Warden guards the oldest secret in the forest. Bring it back to me.','The Heartseed! You have done it. Carry it through the frozen roots south of the ridge, to the Heart of Spicewood. I will follow, hero.','The old tree at the Heart of Spicewood is the source of the blight. End it, hero. All of us are counting on you.','The Heart of Spicewood. The end of the road, hero.'];   // placeholder: stages 10..31 (replaced by the Story step)
 
 const LETTERS=[{s:4,pages:['My dear hero,','You cannot know how proud Hearthmoor is. Old Barkfather was the hardest of them, I think. The road south into Amber Hollow is yours now.','Burn this letter if you like. I only sign for the village.','- Maren']},{s:8,pages:['The reports from the marsh say the Matron wailed as she fell. Do not be moved by it. They are not people, hero. They are locks, and every one you open brings us closer to peace.','- Maren']},{s:10,pages:['The Rust Warden. I confess I did not think you would manage him. Hurry now: winter is coming and the village cannot wait. The lantern will lead you north. Do not dawdle in the tunnels.','- M.']},{s:14,pages:['You are quicker than I dared hope. A rider tells me the wind has spoken your name across the steppe. I wish it had stayed silent.','Say nothing to the guardians about me. They are liars, the lot of them.','- M.']},{s:18,pages:['Cinderfall. You will have found the old forge. There are papers there, hero, nothing but old papers. A family name is only a name. I would not read too much into a copper plate.','Come home for supper when you can.','- Maren']},{s:22,pages:['The Baron is down? I hear the spice markets are... never mind.','Keep to your road. Only five more to go. I mean, five more of the pests.','- M.']},{s:26,pages:['You went into the Gulch. A pity. Some mirrors show more than they should, and nothing they show is kind.','I have only ever wished you well.','- Maren']},{s:28,pages:['You have the crown. Good. Bring it to the Ridge, and then to the Heart, and I will meet you there with the village. Do not stop. The seed is what matters.','- Maren']},{s:30,pages:['You have the seed. I knew you would. Come to the Heart quickly, my dear. We are all waiting for you.','- Maren']}];
+// what Maren says about Lia in each letter: [needs this scene to have happened, line]. Her tone follows the story.
+const LETTER_LIA=[
+  [['',"Lia has taken a liking to you. She asks about you at every meal. Do not let a kitchen girl distract you."]],
+  [['lullaby',"I hear my granddaughter sings by the pond at night again. A child's habit. Pay it no mind."]],
+  [],
+  [['lullaby',"Lia has been very quiet at supper. I have asked her to rest."]],
+  [['hill',"If anyone tells you my granddaughter reads my post, they are mistaken. She is a good girl and does as she is told."]],
+  [['hill',"Lia is unwell. Please do not write to her."]],
+  [['hill',"Lia keeps leaving the house without a word. Her mind is not clear. If you meet her on the road, send her home."]],
+  [['hill',"Lia left before dawn. She believes the village lies to her. I am worried, hero."]],
+  [['ridge',"She has gone to you, has she not. Send her home. She does not understand what she is walking into."]]
+];
 function nextLetter(){
   flags.letters=flags.letters||{};
-  for(let i=0;i<LETTERS.length;i++)if(flags.stage>=LETTERS[i].s&&!flags.letters[i]){flags.letters[i]=true;return LETTERS[i]}
+  for(let i=0;i<LETTERS.length;i++)if(flags.stage>=LETTERS[i].s&&!flags.letters[i]){
+    flags.letters[i]=true;
+    const L=LETTERS[i],extra=(LETTER_LIA[i]||[]).filter(([sc])=>!sc||(flags.sc&&flags.sc[sc])).map(x=>x[1]),pg=L.pages.slice(),sig=pg.pop();
+    return{s:L.s,pages:pg.concat(extra,[sig])};
+  }
   return null;
 }
-function finalePages(){
-  const pg=STORY.finale.slice(),last=pg.pop();
-  const e=STORY.epi[P.hero.id];if(e)pg.push(e);
-  const helped=[];for(const z in QDEFS){const st=flags.q&&flags.q[QDEFS[z].id];if(st&&st.s===2&&ZNPC[z])helped.push(ZNPC[z].name)}
-  if(helped.length)pg.push('In the crowd around the roots stand '+helped.slice(0,5).join(', ')+(helped.length>5?' and '+(helped.length-5)+' more':'')+'. They remember what you did for them.');
-  pg.push(last);
-  return pg;
-}
+// the plain text version of the ending (New Game+ and old saves); the first playthrough plays the scene 'finale' in scenes.js instead
+function finalePages(){return STORY.finale.slice(0,4).concat(finaleEpiloguePages())}
 function betrayalPages(){return STORY.betrayal.map(p=>p==='@REACTION'?(STORY.reaction[P.hero.id]||'You say nothing.'):p)}
 
 const NPCPALS=[{h:'#6a3a1a',c:'#4a7a4a',k:'#2a4a2a',g:'#e8d8a0'},{h:'#c8a050',c:'#8a4a3a',k:'#5a2a22',g:'#f0d0b0'},{h:'#2a2a3a',c:'#5a5a8a',k:'#3a3a5a',g:'#d8d8f0'},{h:'#a8541e',c:'#7a6a3a',k:'#4a3e22',g:'#f0e0c0'},{h:'#e8e8e8',c:'#6a5a8a',k:'#3a2a5a',g:'#d8b040'},{h:'#4a2a1a',c:'#9a7a4a',k:'#5a4a22',g:'#e8d0a0'}];
 const ZNPC={
-  glade:{name:'Fenn the Woodcutter',pre:['The oak up north? Barkfather was our guardian once. Now the sap on his bark runs black.'],post:['Barkfather has gone quiet. First time in my life the glade is silent.']},
-  amber:{name:'Lira the Herbalist',pre:['The Spore Warren keeps growing. Mother Mycelia never used to leave her cave.'],post:['Without Mycelia the spores drift on their own. Dangerous, but gentler.']},
-  marsh:{name:'Old Gurt the Ferryman',pre:['No ferries here, only fords. And the Matron wails at night. Not in anger, I think. In pain.'],post:['The water is calmer. Still no ferries.']},
-  rust:{name:'Dagna the Prospector',pre:['The Warden sealed the lower shafts. The ore down there is strange. Warm, like it has a pulse.'],post:['The Warden is scrap. We may mine the lower shafts now, though the ore is still warm.']},
-  grove:{name:'Edric the Gravedigger',pre:['The dead do not rest here. The Hollow King keeps calling them home.'],post:['Quiet nights now. I still keep the shovel handy.']},
-  heart:{name:'Willow the Hermit',pre:['Do you hear it? The Heart beats slower every day.'],post:['It beats stronger. But slowly, like a sleeper\'s heart. It is not healed, only calm.']},
-  saffron:{name:'Marta the Farmer',pre:['The Harvest King took our granary and never gave a single grain back.'],post:['We have our harvest again. The King only wanted it kept safe, they say.']},
-  ember:{name:'Brokk the Smith',pre:['The Colossus guards a forge nobody lit. The fire inside is far older than Hearthmoor.'],post:['The forge is cold. Strange, but I miss the heat.']},
-  tangle:{name:'Sprig the Scout',pre:['Stay on the road. The Matriarch\'s children eat anything that steps off it.'],post:['The thorns are calmer. The jungle still grows, but like a garden now.']},
-  delta:{name:'Cumin the Merchant',pre:['The Baron hoards every spice in the world. I would pay anything for a barrel of cinnamon.'],post:['The Baron is gone and spices flow again. Business is wonderful!']},
-  mesa:{name:'Zahra the Nomad',pre:['The Tyrant buried a whole palace. They say the Heart\'s roots reach even here.'],post:['The sands have settled. The palace sleeps.']},
-  steppe:{name:'Gale the Shepherd',pre:['The wind carries one message, always the same word. Heart. Heart. Heart.'],post:['The wind is only wind now.']},
+  glade:{name:'Fenn the Woodcutter',pre:['The oak up north? Barkfather was our guardian once. Now the sap on his bark runs black.'],post:['Barkfather has gone quiet. First time in my life the glade is silent.','Lia, the Elder\'s granddaughter, buys herbs from me every week. She always asks after you.']},
+  amber:{name:'Lira the Herbalist',pre:['The Spore Warren keeps growing. Mother Mycelia never used to leave her cave.','Lia from Hearthmoor traded recipes with me once. Her grandmother is sharper, her hands are kinder.'],post:['Without Mycelia the spores drift on their own. Dangerous, but gentler.']},
+  marsh:{name:'Old Gurt the Ferryman',pre:['No ferries here, only fords. And the Matron wails at night. Not in anger, I think. In pain.'],post:['The water is calmer. Still no ferries.','A red-haired girl came through here last year, humming a lullaby to the reeds. Said her mother used to sing it.']},
+  rust:{name:'Dagna the Prospector',pre:['The Warden sealed the lower shafts. The ore down there is strange. Warm, like it has a pulse.','The Elder\'s granddaughter sent me a salve for my hands. Lia. Do not tell her I said she was sweet.'],post:['The Warden is scrap. We may mine the lower shafts now, though the ore is still warm.']},
+  grove:{name:'Edric the Gravedigger',pre:['The dead do not rest here. The Hollow King keeps calling them home.'],post:['Quiet nights now. I still keep the shovel handy.','Somebody left a sprig of Heart-leaf at the crypt gate. The dead were quiet all night.']},
+  heart:{name:'Willow the Hermit',pre:['Do you hear it? The Heart beats slower every day.','The Heart hums a lullaby sometimes. It is older than anyone in Hearthmoor.'],post:['It beats stronger. But slowly, like a sleeper\'s heart. It is not healed, only calm.']},
+  saffron:{name:'Marta the Farmer',pre:['The Harvest King took our granary and never gave a single grain back.','Lia came to see how the harvest was going. She counts everything, like her grandmother. But she does it kindly.'],post:['We have our harvest again. The King only wanted it kept safe, they say.']},
+  ember:{name:'Brokk the Smith',pre:['The Colossus guards a forge nobody lit. The fire inside is far older than Hearthmoor.'],post:['The forge is cold. Strange, but I miss the heat.','Lia wrote to ask what the old charter says. I told her the truth. She wrote back one word: Thanks.']},
+  tangle:{name:'Sprig the Scout',pre:['Stay on the road. The Matriarch\'s children eat anything that steps off it.','A herbalist from Hearthmoor, Lia, asked me for a map of the root-paths. Odd request. I drew it anyway.'],post:['The thorns are calmer. The jungle still grows, but like a garden now.']},
+  delta:{name:'Cumin the Merchant',pre:['The Baron hoards every spice in the world. I would pay anything for a barrel of cinnamon.'],post:['The Baron is gone and spices flow again. Business is wonderful!','Lia from Hearthmoor wrote to offer herbs for spices. I may say yes. She seems honest.']},
+  mesa:{name:'Zahra the Nomad',pre:['The Tyrant buried a whole palace. They say the Heart\'s roots reach even here.','A girl named Lia sent word that somebody should look after you out here. She is persuasive.'],post:['The sands have settled. The palace sleeps.']},
+  steppe:{name:'Gale the Shepherd',pre:['The wind carries one message, always the same word. Heart. Heart. Heart.','Sometimes the wind carries a lullaby, faint, a woman\'s voice. It does not say Heart. It says: sleep.'],post:['The wind is only wind now.']},
   spire:{name:'Ash the Hermit',pre:['The mountain has a fever. So does the forest. Same sickness, I think.'],post:['The mountain cools. The fever has broken.']},
-  gulch:{name:'Prism the Crystal-Seer',pre:['The light here cannot escape. Neither can I, some days.'],post:['The light flows out. For the first time the gulch is dim.']},
-  ridge:{name:'Hilda the Snow-Warden',pre:['The Warden guards the oldest thing in the forest. Not a treasure. A secret.'],post:['The Warden\'s dust blows down the ridge. The secret is in your hands now.']}
+  gulch:{name:'Prism the Crystal-Seer',pre:['The light here cannot escape. Neither can I, some days.'],post:['The light flows out. For the first time the gulch is dim.','I saw you in the glass beside a girl with red hair. Do not ask me what it meant.']},
+  ridge:{name:'Hilda the Snow-Warden',pre:['The Warden guards the oldest thing in the forest. Not a treasure. A secret.'],post:['The Warden\'s dust blows down the ridge. The secret is in your hands now.','A red-haired girl came up the ridge out of breath, asking for you. I sent her to the camp.']}
 };
 const ZNPCBOSS={glade:'boss',amber:'boss2',marsh:'boss3',rust:'boss4',grove:'boss5',heart:'boss16',saffron:'boss7',ember:'boss8',tangle:'boss14',delta:'boss15',mesa:'boss13',steppe:'boss9',spire:'boss10',gulch:'boss12',ridge:'boss11'};
 
@@ -80,6 +91,25 @@ const TOMES={
   gulch:[['Crystal Inscription','Every crystal remembers a light that once shone on the Heart. Break one and you free a memory.'],['Seer\'s Notes','There are two reflections of everything in the Gulch: one that obeys you, and one that tells the truth.']],
   ridge:[['Warden\'s Last Wish','I froze the Heart\'s last seed to keep it safe. When the blight ends, someone must carry it home and plant it. Not harvest. Plant.'],['The Frozen Page','The founders\' real sin was not taking. It was never planting anything in return.']]
 };
+// the Great Turning: one ringed stump per region shows what the land used to be
+const ROOTS={
+  glade:'The rings run unbroken to the bark: healthy, old, whole. All of the Spicewoods once looked like this.',
+  amber:'Amber from the old sap, hardened over a thousand years. Corwin wrote that the forest ran unbroken from the sea to the snow.',
+  marsh:'The rings are dark and soaked through. The Heart let go of the water, and the ground forgot how to hold it.',
+  rust:'Stone creeps over the rings. The founders cleared this slope for ore, and without roots the soil slid away. Only rock remained.',
+  grove:'The rings are black. This wood died standing, and the Heart still calls it home.',
+  heart:'The rings reach the core. Every other stump in the forest ends where the Heart stopped feeding it. This one never did.',
+  saffron:'The founders felled this wood for fields. The wind found the bare ground at once, and grass grew where the roots had been.',
+  ember:'The rings are scorched in a circle. The Heart\'s fever began here, and the soil still remembers the heat.',
+  tangle:'Fresh shoots on an ancient stump. Where no Heart guides the growth, the forest does not die. It runs wild.',
+  delta:'The rings are swollen and soft. When the roots gave way, the rivers took over and cut the forest into islands.',
+  mesa:'Fossil wood under the dust. Water once ran through these roots. The sands rose the day the Heart fell ill.',
+  steppe:'Only wind remains where the trees stood. The Heart\'s whisper crosses the open land with nothing to stop it.',
+  spire:'The rings are fused into black glass. A tree stood here before the mountain woke. The fever baked it where it stood.',
+  gulch:'A whole stump sealed in crystal, rings still visible. The sap froze mid-flow and became stone.',
+  ridge:'Green moss under the ice. The cold did not kill this wood. It only put it to sleep until someone plants again.'
+};
+for(const z in ROOTS)TOMES[z].push(['The Ringed Stump',ROOTS[z]]);
 const TOMELIST=[];for(const z in TOMES)TOMES[z].forEach((t,i)=>TOMELIST.push({id:z+'_'+i,zone:z,title:t[0],text:t[1]}));
 const TOMEBYID={};for(const t of TOMELIST)TOMEBYID[t.id]=t;
 
@@ -123,9 +153,11 @@ function drawStory(){
 }
 
 // ---------- tomes ----------
+// reading a page opens it in the Codex (visions.js). The first time you touch a Ringed Stump, you see the land as it was before the page opens.
 function readTome(id){
   const t=TOMEBYID[id];if(!t)return;
   flags.lore=flags.lore||{};
-  const first=!flags.lore[id];flags.lore[id]=true;
-  say(t.title,[t.text],()=>{if(first){toast(`Codex entry added (${Object.keys(flags.lore).length}/${TOMELIST.length})`,'#8fd0ff');Snd.level();save()}});
+  const first=!flags.lore[id];
+  if(first&&t.title==='The Ringed Stump'&&REGION_VIS[t.zone]){playScene('stumpVision',()=>openCodexPage(id,true),t.zone);return}
+  openCodexPage(id,first);
 }

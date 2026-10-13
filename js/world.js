@@ -132,8 +132,69 @@ const zGround=(z,r)=>{const S=ZSPEC[z];return S.mode==='islands'?T.GRASS:(r&&S.a
 const zWall=z=>ZSPEC[z].mode==='islands'?T.WATER:ZSPEC[z].wood;
 function hexRGB(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
 
+// ---------- world seed ----------
+// Same seed = same world. Seed 0 is the original world (old saves). Every other seed is built with GEN_SALT (see zones.js); when a build is not acceptable
+// (a cave, the dungeon mouth or a clearing found no room, or something is unreachable) the next attempt is tried. The attempts are deterministic,
+// so a seed always ends in the same world. If every attempt fails, the original world (seed 0) is used.
+const WORLD_TRIES=24;
+const newWorldSeed=()=>1+Math.floor(Math.random()*2147483646);
+function clearGenState(){
+  for(const k of Object.keys(WPS))delete WPS[k];
+  for(const k of Object.keys(GRET))delete GRET[k];
+  for(const k of Object.keys(DUNEXIT))delete DUNEXIT[k];
+  for(const k of Object.keys(CAVES)){delete CAVES[k];delete MAPS[k]}
+  for(const k of Object.keys(DUN_META))delete DUN_META[k];
+  GENFAIL.length=0;WTEMPLATE=null;
+  if(typeof WMMBASE!=='undefined')WMMBASE=null;
+}
+let WORLD_REQ=0;   // the seed that was asked for (WORLD_SEED drops to 0 when every attempt failed and the original world was used)
+function worldSeedIs(seed){return !!WTEMPLATE&&WORLD_REQ===seed}
+function setWorldSeed(seed){
+  seed=seed|0;
+  if(worldSeedIs(seed))return;
+  clearGenState();GEN_SALT=0;WORLD_SEED=WORLD_REQ=seed;
+}
+function worldSalt(seed,attempt){return seed?(Math.imul(seed,0x85EBCA6B)+attempt*0x3C6EF372+1)>>>0:0}
 function ensureWorld(){
   if(WTEMPLATE)return;
+  const tries=WORLD_SEED?WORLD_TRIES:1;
+  for(let a=0;a<tries;a++){
+    clearGenState();GEN_SALT=worldSalt(WORLD_SEED,a);
+    buildWorld();
+    const why=WORLD_SEED?GENFAIL.concat(validateWorld(WTEMPLATE)):[];
+    if(!why.length){WORLD_ATTEMPT=a;return}
+    if(typeof console!=='undefined'&&console.log&&typeof WORLD_QUIET==='undefined')console.log('world seed',WORLD_SEED,'attempt',a,'rejected:',why.slice(0,3).join('; '));
+  }
+  WORLD_SEED=0;clearGenState();GEN_SALT=0;WORLD_ATTEMPT=-1;buildWorld();   // nothing worked: fall back to the original world
+}
+let WORLD_ATTEMPT=0;
+// everything the player has to be able to reach, with every gate open: warps (dungeons, caves, grottos), chests, waypoints, and nearly all enemies
+function validateWorld(W){
+  const why=[],w=W.w,h=W.h,TSz=TS,seen=new Uint8Array(w*h),sealed=new Uint8Array(w*h);
+  for(const s of W.seals)for(const[x,y]of s.tiles)sealed[y*w+x]=1;
+  for(const p of W.props)if(p.k==='hedge'||p.k==='block')sealed[p.ty*w+p.tx]=1;   // a hedge is cut with the sword; a block can be pushed
+  for(const g of W.gates)for(const[x,y]of g.tiles)sealed[y*w+x]=1;
+  const open=i=>{const t=W.t[i];return sealed[i]||t===T.VINE||t===T.GORGE||t===T.SHALLOW||!SOLID[t]};
+  const sx=Math.floor(W.start.x/TSz),sy=Math.floor(W.start.y/TSz),q=[sy*w+sx];seen[q[0]]=1;
+  for(let h0=0;h0<q.length;h0++){
+    const i=q[h0],x=i%w,y=(i-x)/w;
+    if(x>0&&!seen[i-1]&&open(i-1)){seen[i-1]=1;q.push(i-1)}
+    if(x<w-1&&!seen[i+1]&&open(i+1)){seen[i+1]=1;q.push(i+1)}
+    if(y>0&&!seen[i-w]&&open(i-w)){seen[i-w]=1;q.push(i-w)}
+    if(y<h-1&&!seen[i+w]&&open(i+w)){seen[i+w]=1;q.push(i+w)}
+  }
+  const reach=(x,y,r0,r1)=>{for(let j=-r0;j<=r1;j++)for(let i=-1;i<=1;i++){const xx=x+i,yy=y+j;if(xx>=0&&yy>=0&&xx<w&&yy<h&&seen[yy*w+xx])return true}return false};
+  let n=0;for(const q2 of W.warps){if(!reach(Math.floor((q2.x+q2.w/2)/TSz),Math.floor((q2.y+q2.h/2)/TSz),1,3))n++}
+  if(n)why.push(n+' warps unreachable');
+  n=0;for(const c of W.chests){const x=Math.floor(c.x/TSz),y=Math.floor(c.y/TSz);if(!reach(x,y,1,1))n++}
+  if(n)why.push(n+' chests unreachable');
+  for(const z of ZLIST){const p=WPS[z];if(!p)why.push('no waypoint '+z);else if(!seen[(p[1]+1)*w+p[0]])why.push('waypoint unreachable '+z)}
+  n=0;for(const s of W.spawns){const x=Math.floor(s.x/TSz),y=Math.floor(s.y/TSz);if(SOLID[W.t[y*w+x]]||!seen[y*w+x])n++}
+  if(n>W.spawns.length*.01)why.push(n+' enemies in unreachable ground');
+  for(const t of W.triggers){if(!seen[Math.floor((t.y+t.h/2)/TSz)*w+Math.floor((t.x+t.w/2)/TSz)])why.push('trigger unreachable')}
+  return why;
+}
+function buildWorld(){
   const WX=makeWX(),res={};
   for(const z of ZLIST)res[z]=genZoneLocal(z,WX);
   const w=WX.w,h=WX.h,own=WX.own,W=mk('world','The Spicewoods',w,h,T.TREE),r=seeded(4242);
@@ -218,6 +279,9 @@ function ensureWorld(){
     for(const n of m.npcs)W.npcs.push(sh(n,dx,dy));
     for(const s of m.spawns)W.spawns.push(Object.assign(s,{x:s.x+dx*TS,y:s.y+dy*TS}));
     for(const c of m.chests)W.chests.push(c);   // chests are already in world pixels
+    for(const f of m.fields||[])W.fields.push(Object.assign({},f,{x:f.x+dx,y:f.y+dy}));
+    for(const pl of m.plates||[])W.plates.push(Object.assign({},pl,{tx:pl.tx+dx,ty:pl.ty+dy}));
+    for(const g of m.gates||[])W.gates.push(Object.assign({},g,{tiles:g.tiles.map(([x,y])=>[x+dx,y+dy])}));
     for(const q2 of m.warps)W.warps.push(Object.assign(q2,{x:q2.x+dx*TS,y:q2.y+dy*TS}));
     if(m.after)W.after=m.after;
   }
@@ -322,6 +386,8 @@ function cloneWorld(T){
   m.chests=T.chests.map(q=>Object.assign({},q));
   m.seals=T.seals.map(q=>Object.assign({},q));
   m.triggers=T.triggers.map(q=>Object.assign({},q));
+  m.fields=T.fields;   // static; the geysers and gusts run on the clock
+  m.plates=T.plates.map(q=>Object.assign({},q));m.gates=T.gates.map(q=>Object.assign({},q,{tiles:q.tiles.map(t=>t.slice())}));
   m.spawns=T.spawns;
   m.mm=undefined;m.layer=undefined;
   return m;

@@ -113,8 +113,8 @@ const Music=(()=>{
 // ---------- Input ----------
 const Input=(()=>{
   const codes={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',
-    KeyJ:'attack',KeyK:'skill1',KeyL:'skill2',Semicolon:'skill3',Space:'roll',KeyE:'interact',Enter:'enter',KeyI:'inv',Tab:'inv',KeyQ:'potion',
-    KeyP:'pause',Backspace:'back',KeyX:'sell',Digit1:'n1',Digit2:'n2',Digit3:'n3',Digit4:'n4',KeyM:'mute',KeyT:'tree',KeyN:'map',KeyF:'fav',KeyV:'mm',KeyO:'sort',KeyG:'guide',KeyZ:'tabl',KeyC:'tabr'};
+    KeyJ:'attack',KeyK:'skill1',KeyL:'skill2',Semicolon:'skill3',Space:'roll',KeyE:'interact',Enter:'enter',KeyI:'inv',Tab:'inv',KeyQ:'potion',KeyR:'scroll',
+    KeyP:'pause',Backspace:'back',KeyX:'sell',Digit1:'n1',Digit2:'n2',Digit3:'n3',Digit4:'n4',KeyM:'mute',KeyB:'codex',KeyT:'tree',KeyN:'map',KeyF:'fav',KeyV:'mm',KeyO:'sort',KeyG:'guide',KeyZ:'tabl',KeyC:'tabr'};
   const NAV=new Set(['left','right','up','down']);
   const CONF=['enter','attack','interact','roll'];
   const held={},virt={};let hits={};const joy={x:0,y:0};

@@ -3,7 +3,7 @@ const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR
 const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,0,1,1,0,0,1,0,1,0,0,1,1,1,1,0,1];
 
 function mk(id,name,w,h,fill){
-  return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],plates:[],gates:[],rooms:[],seals:[],mist:false,dark:false};
+  return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],plates:[],gates:[],rooms:[],seals:[],fields:[],mist:false,dark:false};
 }
 const gt=(m,x,y)=>(x<0||y<0||x>=m.w||y>=m.h)?-1:m.t[y*m.w+x];
 const st=(m,x,y,v)=>{if(x>=0&&y>=0&&x<m.w&&y<m.h)m.t[y*m.w+x]=v};
@@ -148,11 +148,11 @@ function buildVillage(open){
     building(m,x,5,w,5,rf);
     const dx=x+Math.floor(w/2);
     rectT(m,dx,10,2,4,T.PATH);
-    m.labels.push({x:(x+w/2)*TS,y:5*TS-8,text:bid?(()=>`${label} Lv ${baseLv(bid)}`):label});
+    m.labels.push({x:(x+w/2)*TS,y:5*TS-8,text:label});
   }
   // storehouse
   building(m,33,16,5,4,20);rectT(m,35,20,1,1,T.PATH);rectT(m,21,20,15,1,T.PATH);
-  m.labels.push({x:35.5*TS,y:16*TS-8,text:()=>`Storehouse Lv ${baseLv('store')}`});
+  m.labels.push({x:35.5*TS,y:16*TS-8,text:'Storehouse'});
   // pond
   disc(m,7,22,3.6,T.WATER);
   // scattered trees in the south and corners
@@ -185,15 +185,16 @@ function buildVillage(open){
   // between the smithy and the tavern: thorn vines hide the Root Cellar (needs the Thornsickle)
   rectT(m,9,2,2,3,T.PATH);rectT(m,8,2,1,3,T.TREE);rectT(m,11,2,1,3,T.TREE);rectT(m,9,4,2,1,T.VINE);
   st(m,9,2,T.OAK);st(m,10,2,T.OAK);
+  // seal the back: in the open world there is no tree border, so close the north side too (no walking in without the sickle)
+  rectT(m,8,0,4,2,T.TREE);
   if(!open)GRET.village={tx:10*TS,ty:3.6*TS};
   m.warps.push({x:9*TS,y:2*TS,w:2*TS,h:TS,to:'grotto_village',tx:11.5*TS,ty:13*TS});
   m.npcs.push(
     {id:'elder',name:'Elder Maren',x:c(22.5),y:c(17),pal:{h:'#e8e8e8',c:'#6a5a8a',k:'#3a2a5a',g:'#d8b040'}},
-    {id:'smith',name:'Torvald the Smith',x:c(8),y:c(11),pal:{h:'#4a2a1a',c:'#7a5a3a',k:'#3a2a1a',g:'#a0a0a0'}},
-    {id:'tavern',name:'Dolly',x:c(15.5),y:c(11.5),pal:{h:'#a8541e',c:'#b0603a',k:'#6a3a1e',g:'#f0e0c0'}},
-    {id:'stash',name:'Bruna the Keeper',x:c(37),y:c(20.5),pal:{h:'#7a7a8a',c:'#6a5a4a',k:'#3a2e22',g:'#d8c890'}},
-    {id:'alch',name:'Pip the Alchemist',x:c(26),y:c(11),pal:{h:'#2a6a4a',c:'#3a8a5a',k:'#1a4a2a',g:'#8fe0a0'}}
+    {id:'fair',name:'Tilly',x:c(31),y:c(20),pal:{h:'#c04a2a',c:'#e0a030',k:'#6a3a1a',g:'#f8e0c0'}}
+    // Torvald, Dolly, Pip and Bruna work inside their houses now (see houses.js)
   );
+  if(typeof placeHouseDoors==='function')placeHouseDoors(m);
 
   // ---- life: props, garden, flowers, critters ----
   const prop=(k,tx,ty,w)=>{w=w||1;m.props.push({k,tx,ty,w});for(let i=0;i<w;i++)st(m,tx+i,ty,T.BLOCK)};
@@ -210,11 +211,11 @@ function buildVillage(open){
   // tavern
   prop('barrel',11,10);prop('barrel',12,10);prop('crate',16,10);
   // alchemist
-  prop('pot',22,10);prop('crate',27,10);prop('pot',28,10);
+  prop('crate',27,10);prop('pot',28,10);
   // elder's house
   prop('hay',31,12);prop('hay',32,12);prop('barrel',36,10);prop('bush',31,10);prop('bush',37,10);prop('bush',2,10);prop('bush',9,10);
   // market stalls
-  prop('stall',11,17,2);prop('crate',13,17);prop('stall',27,17,2);prop('barrel',26,18);
+  prop('fairbooth',30,19,2);prop('stall',11,17,2);prop('stall',27,17,2);prop('barrel',26,18);
   // lanterns
   for(const[x,y]of[[9,13],[18,11],[21,11],[29,13],[33,13],[9,16],[29,16],[31,16],[18,19],[21,19]])prop('lantern',x,y);
   // flowers on free grass
@@ -223,9 +224,9 @@ function buildVillage(open){
     if(gt(m,x,y)===T.GRASS&&Math.hypot(x-20,y-15)>5)st(m,x,y,T.FLOWER);
   }
   prop('sign',36,13);m.props[m.props.length-1].text='East of Hearthmoor lies Ember Glade. Beetles, wolves and worse... Keep your sword sharp!';
-  scatter(m,r,26,'cutbush',(x,y)=>y>=10&&Math.hypot(x-20,y-15)>5);
-  scatter(m,r,10,'clay',(x,y)=>y>=10&&y<=12&&Math.hypot(x-20,y-15)>5);
-  scatter(m,r,4,'logs',(x,y)=>(x<10||x>30)&&y>=10);
+  scatter(m,r,26,'cutbush',(x,y)=>y>=10&&Math.hypot(x-20,y-15)>5,null,true);   // walk-through grass (cut it with the sword)
+  scatter(m,r,3,'clay',(x,y)=>y>=10&&y<=12&&Math.hypot(x-20,y-15)>5);
+  scatter(m,r,4,'logs',(x,y)=>(x<10||x>30)&&y>=10,null,true);
   scatter(m,r,5,'herb',(x,y)=>y>=17&&Math.hypot(x-20,y-15)>5,null,true);
   m.chimneys=[{x:7.2*TS,y:5*TS},{x:16*TS,y:5*TS},{x:26*TS,y:5*TS},{x:35*TS,y:5*TS}];
   // wandering villagers
@@ -234,11 +235,13 @@ function buildVillage(open){
     ['I smell cinnamon on the wind. Autumn is here!','Pip makes the best healing potions, you know.'],
     ['Dolly pours the finest cider this side of the Spicewoods.','Mind the wolves in the glade, traveler.']];
   const walker=(name,tx,ty,pal,ls)=>m.npcs.push({id:'walker',walk:true,name,x:c(tx),y:c(ty),pal,lines:ls,hw:4,hh:3,home:{x:c(tx),y:c(ty)},t:rand(0,2),wx:0,wy:0,moving:false,anim:0});
-  walker('Villager',14,18,{h:'#6a4a2a',c:'#9a6a3a',k:'#5a3a1e',g:'#f0d890'},lines[0]);
+  walker('Villager',17,20,{h:'#6a4a2a',c:'#9a6a3a',k:'#5a3a1e',g:'#f0d890'},lines[0]);
   walker('Villager',29,19,{h:'#c8a050',c:'#4a7a9a',k:'#2a4a6a',g:'#e8f0f8'},lines[1]);
   walker('Villager',12,13,{h:'#2a2a3a',c:'#9a4a6a',k:'#5a2a3a',g:'#f0c0d0'},lines[2]);
   for(let i=0;i<4;i++)m.critters.push({k:'chicken',x:c(15+i*.8),y:c(22+(i%2)),hw:3,hh:2,home:{x:c(16),y:c(22.5)},t:rand(0,2),wx:0,wy:0,moving:false,anim:rand(0,6)});
   m.critters.push({k:'dog',x:c(13),y:c(12),hw:4,hh:2,home:{x:c(13),y:c(12)},t:0,wx:0,wy:0,moving:false,anim:0});
+  // nothing but the market props may stand on or against the hero's shed
+  m.props=m.props.filter(p=>!(p.tx>=11&&p.tx<=16&&p.ty>=17&&p.ty<=23&&p.k!=='stall'&&p.k!=='crate'));
   m.start={x:20*TS,y:17*TS};
   return m;
 }

@@ -177,7 +177,7 @@ const Account={
       const msg=mk('div','min-height:20px;margin:8px 2px;font-size:13px;color:'+colorOf(this.statusColor)+';',this.status);
       const row=mk('div','display:flex;flex-wrap:wrap;');
       if(!this.configured){
-        box.appendChild(mk('div','color:'+C.dim+';font-size:14px;line-height:1.4;','Cloud saves are not set up in this version yet. Use the save code below to move your save between devices.'));
+        box.appendChild(mk('div','color:'+C.dim+';font-size:14px;line-height:1.4;','Your save lives in this browser. Use the save code below to move it between devices.'));
       }else if(!this.on){
         box.appendChild(mk('div','color:'+C.dim+';font-size:13px;line-height:1.4;margin-bottom:6px;','Log in to keep your 3 save slots in the cloud and play with the same progress on every device. It is the same Holiday Games login as Death Arena. Choose any name and a password. There is NO password reset, so remember it.'));
         nameIn=input('text','NAME');pwIn=input('password','PASSWORD (6+ CHARACTERS)');

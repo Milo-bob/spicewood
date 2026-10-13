@@ -31,8 +31,9 @@ const Spr=(()=>{
     if(kind==='mage')top=['....hh....','..hhhhhh..','hhhhhhhhhh','hhhhhhhhhh'];
     if(kind==='rogue')top=['.hhhhhhhh.','hhhhhhhhhh','hhhhhhhhhh'];
     const face=kind==='rogue'?['hssssssssh','hswesswesh','hkkkkkkkkh','.hkkkkkkh.']:['hssssssssh','hswesswesh','hsssmmsssh','.hssssssh.'];
-    let rows=[...top,'hssssssssh',...face,'.kcccccck.','.kccggcck.','..kkkkkk..'];
-    if(kind==='rogue')rows=[...top,'hssssssssh',...face,'.kcccccck.','.kccggcck.','..kkkkkk..'];
+    // narrow torso (cols 2-7) with a sleeve + hand on each side; legs come from legs()
+    const body=['.ckcccckc.','.ckcggckc.','.skkkkkks.'];
+    let rows=[...top,'hssssssssh',...face,...body];
     if(back)rows=rows.map(r=>r.replace(/[we]/g,'h').replace(/m/g,'s'));
     return outline(make(rows,Object.assign({s:'#f2c9a0',e:'#1b1b1b',w:'#ffffff',m:'#b0605a'},pal)));
   }
@@ -162,24 +163,39 @@ const Spr=(()=>{
     'pppp.ppp',
     'ppp..ppp',
     '.pp..ppp']),{l:'#e8c040',w:'#e8e4d0',e:'#7af0ff',d:'#7a7460',p:'#4a2a6a',b:'#b8b4a0'},2);
-  // The Heartwood: the ancient tree itself
-  enemy.boss6=make(sym([
-    '..gggooo',
-    '.ggyggog',
-    'gggggygg',
-    'goggggog',
-    '.gbbbbbb',
-    '..bdeebb',
-    '..bbbbbb',
-    '..bdmmmm',
-    '..bbbdmm',
-    '...bbbbb',
-    '..lbbbbb',
-    '.lbbbbbb',
-    'lb.bbbbb',
-    'b..bbbbb',
-    'l..bb.bb',
-    '...b..b.']),{g:'#5aa03a',o:'#d8741e',y:'#e8b838',b:'#6a4424',d:'#3a2412',e:'#ffe060',m:'#140a06',l:'#8a5c30'},2);
+  // The Heartwood: a vast, motionless tree with the golden Heart in its trunk (built from a pixel grid like everything else)
+  enemy.boss6=(()=>{
+    const GW=40,GH=44,CX=19.5,g=Array.from({length:GH},()=>Array(GW).fill('.'));
+    const hs=(x,y,n)=>{let h=(x*374761393+y*668265263+n*2147483647)|0;h=(h^(h>>>13))*1274126177|0;return((h^(h>>>16))>>>0)/4294967296};
+    const blobs=[[9,13,8.5],[30,13,8.5],[19.5,8,10],[13,19,8],[26,19,8],[19.5,16,9.5],[5,19,5],[34,19,5]];
+    const inCan=(x,y)=>blobs.some(([bx,by,r])=>Math.hypot(x-bx,(y-by)*1.1)<r);
+    for(let y=0;y<26;y++)for(let x=0;x<GW;x++)if(inCan(x,y)){
+      const n=hs(x,y,1),d=y+(x-CX)*.12+(n-.5)*7;   // light on top, dark below
+      let c=d<6?'h':d<15?'G':'g';
+      if(n>.93)c=n>.965?'o':'y';
+      g[y][x]=c;
+    }
+    const trunkW=y=>y<30?5.2:y<35?5.2+(y-30)*.35:6.9+(y-35)*1.1;
+    for(let y=17;y<GH;y++){
+      const w=trunkW(y);
+      for(let x=0;x<GW;x++){
+        const dx=x-CX;if(Math.abs(dx)>w)continue;
+        if(g[y][x]!=='.'&&y<26)continue;
+        const streak=hs(Math.floor(x/2),0,7)>.55;
+        g[y][x]=dx<-w*.45?(streak?'b':'l'):dx>w*.35?'d':(streak?'d':'b');
+      }
+    }
+    for(let y=39;y<GH;y++)for(const sd of[-1,1]){   // roots reaching out along the ground
+      const reach=9+(y-39)*1.6+hs(sd+3,y,4)*2;
+      for(let k=0;k<reach-trunkW(y);k++){const x=Math.round(CX+sd*(trunkW(y)+k));if(x>=0&&x<GW&&y>=GH-2-Math.round(Math.sin(k*.7+sd)*.9+.4))g[y][x]=k%3?'b':'d'}
+    }
+    const hx=CX,hy=33;   // the hollow with the Heart
+    for(let y=22;y<42;y++)for(let x=0;x<GW;x++){
+      const q=Math.hypot((x-hx)/4.6,(y-hy)/7);
+      if(q<1)g[y][x]=q<.38?'e':q<.72?'a':'m';
+    }
+    return make(g.map(r=>r.join('')),{h:'#6a9a3a',G:'#4a7a28',g:'#2a4a18',o:'#d8741e',y:'#e8b838',b:'#6a4424',d:'#3a2412',l:'#8a5c30',e:'#ffe060',a:'#d8a030',m:'#140a06'},3);
+  })();
   enemy.skeleton=make(sym([
     '..www',
     '.wwww',
@@ -423,7 +439,15 @@ const Spr=(()=>{
     multi(34,(g,r)=>{R(g,'#d9b975',0,0,16,16);speck(g,r,['#c9a55c','#e8cd8a','#b89449','#d2b068'],26);if(r()<.25)R(g,'#a8864a',Math.floor(r()*12),Math.floor(r()*14),4,1)});
     multi(35,(g,r,v)=>{R(g,'#102018',0,0,16,16);R(g,'#4a3020',6,12,4,4);R(g,'#1c4a30',1,4,14,9);R(g,'#2a6a44',2,2,12,7);R(g,'#1c4a30',3,0,10,4);R(g,'#eef4fa',2,2,5,2);R(g,'#eef4fa',9,5,4,2);R(g,'#eef4fa',4,0,6,1);R(g,'#c8d8e8',1,12,14,1)});
     multi(36,(g,r,v)=>{R(g,'#d9b975',0,0,16,16);speck(g,r,['#c9a55c','#e8cd8a'],14);R(g,'rgba(0,0,0,.2)',3,13,10,2);const x=5+(v%3);R(g,'#2c6a30',x,3,4,11);R(g,'#4a9a48',x,3,2,11);R(g,'#2c6a30',x-3,6,3,2);R(g,'#2c6a30',x-3,4,2,3);R(g,'#2c6a30',x+4,8,3,2);R(g,'#2c6a30',x+5,5,2,4);R(g,'#e8c8d0',x+1,3,1,1)});
-    multi(37,(g,r,v)=>{R(g,'#3a3446',0,0,16,16);speck(g,r,['#4a4458','#2a2636'],14);R(g,'rgba(0,0,0,.3)',1,13,14,2);const cs=[['#7ad8e8','#4aa0b8'],['#c8a0ff','#8a60c8'],['#ff9ad0','#c0608a'],['#a0f0c0','#50b080']],c=cs[v%4];R(g,c[0],6,2,4,11);R(g,'#ffffff',7,3,1,6);R(g,c[1],9,4,1,9);R(g,c[0],2,6,3,7);R(g,c[1],4,7,1,6);R(g,c[0],11,7,3,6);R(g,c[1],13,8,1,5)});
+    multi(37,(g,r,v)=>{
+      // seamless crystal mass: full-height prisms with the same column edges in every variant, so tiles join into one crystal field
+      const cols=[[0,4],[4,5],[9,3],[12,4]],base=[['#6a50b0','#8a6cd0','#4a3a7c'],['#5a44a0','#7a5cc0','#3e3070'],['#7a5cc0','#9a7ce0','#523e8c'],['#624aa8','#8268c8','#463680']];
+      cols.forEach((c,i)=>{const b=base[(i+v)%4];R(g,b[0],c[0],0,c[1],16);R(g,b[1],c[0],0,1,16);R(g,b[2],c[0]+c[1]-1,0,1,16)});
+      const sp=[['#a8ecf4','#6cc0d4'],['#d8bcff','#9a78d8'],['#f0b4e0','#c880b4'],['#b4f4d0','#78c8a0']][v%4],cc=cols[(v+1)%4];
+      R(g,sp[1],cc[0]+1,Math.floor(r()*6),cc[1]-2,5+Math.floor(r()*5));R(g,sp[0],cc[0]+1,0+Math.floor(r()*4)+1,1,4);
+      for(let i=0;i<3;i++){const x=Math.floor(r()*14)+1,y=Math.floor(r()*13);R(g,'#ffffff',x,y,1,2)}
+      for(let i=0;i<4;i++)R(g,'rgba(40,24,80,.35)',Math.floor(r()*12),Math.floor(r()*14),3,1);
+    });
     multi(38,(g,r,v)=>{R(g,'#0a1c0e',0,0,16,16);R(g,'#3a2412',6,12,4,4);R(g,'#16401c',0,3,16,10);R(g,'#1e5a26',0,0,16,9);for(let i=0;i<6;i++)R(g,'#2e7a34',Math.floor(r()*12),Math.floor(r()*7),3,2);for(let i=0;i<3;i++)R(g,'#0e2e14',Math.floor(r()*13),Math.floor(r()*8)+1,3,2);if(v%2)R(g,'#e8683a',Math.floor(r()*12)+1,Math.floor(r()*7)+1,2,2);R(g,'#0a1c0e',0,12,16,1);R(g,'#14401a',1,10,14,2)});
     multi(39,(g,r)=>{R(g,'#3a3232',0,0,16,16);speck(g,r,['#4a3e3e','#2a2222','#564848','#332a2a'],26);if(r()<.18)R(g,'#c8501e',Math.floor(r()*14),Math.floor(r()*14),1,1);if(r()<.15)R(g,'#5a3a2a',Math.floor(r()*12),Math.floor(r()*14),3,1)});
     multi(40,(g,r)=>{R(g,'#16101a',0,0,16,16);speck(g,r,['#241a2c','#0e0a12'],12);R(g,'rgba(0,0,0,.3)',1,13,14,2);R(g,'#2e2438',1,2,14,11);R(g,'#3c2e4a',2,2,10,4);R(g,'#16101a',1,12,14,1);for(let i=0;i<3;i++){const x=Math.floor(r()*11)+2,y=Math.floor(r()*8)+3;R(g,'#c0401a',x,y,1,3);R(g,'#ff8a2a',x,y,1,1)}});
@@ -431,5 +455,13 @@ const Spr=(()=>{
   }
   build();
   tiles[24]=tiles[9];tiles[23]=tiles[9];tiles[26]=tiles[9];
-  return{make,tint,heroes,npc,enemy,elite,flash,tiles};
+  // two slim legs with small feet; step 0/1 lifts one leg. (x,y) = bottom centre of the body sprite.
+  function legs(g,x,y,col,step,sc){
+    sc=sc||1;const r=(a,b,w,h)=>g.fillRect(x+a*sc,y+b*sc,w*sc,h*sc);
+    g.fillStyle=col;
+    const l=step?1:0,rr=step?0:1;
+    r(-3,1-l,2,2);r(-4,2-l,3,1);
+    r(1,1-rr,2,2);r(1,2-rr,3,1);
+  }
+  return{make,tint,legs,heroes,npc,enemy,elite,flash,tiles};
 })();

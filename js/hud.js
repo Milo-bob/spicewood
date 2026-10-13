@@ -66,6 +66,7 @@ function drawMinimap(){
   };
   for(const wp of M.warps){const tx=(wp.x+wp.w/2)/TS,ty=(wp.y+wp.h/2)/TS;if(known(tx,ty))dot(tx,ty,wp.need?'#ff8a50':wp.portal?'#fff2a0':'#ffe040',3*sc>3?4:3)}
   for(const c of CH)if(!c.open){const tx=c.x/TS,ty=c.y/TS;if(known(tx,ty))dot(tx,ty,'#ff9a2a',2*sc)}
+  for(const r of rumorTargets())dot(r.x,r.y,Math.floor(time*3)%2?'#fff0a0':'#ffc840',4);   // what a peddler told you about
   if(M.id==='world'){for(const z in WPS)if(known(WPS[z][0],WPS[z][1]))dot(WPS[z][0]+.5,WPS[z][1]+.5,'#60d8ff',3*sc)}
   else if(WPS[M.id]&&!M.dungeon&&known(WPS[M.id][0],WPS[M.id][1]))dot(WPS[M.id][0]+.5,WPS[M.id][1]+.5,'#60d8ff',3*sc);
   for(const e of E)if(e.type==='boss'&&!e.dead&&known(e.x/TS,e.y/TS))dot(e.x/TS,e.y/TS,'#ff3030',4);
@@ -73,7 +74,7 @@ function drawMinimap(){
   const blink=Math.floor(time*3)%2;
   dot(px,py,blink?'#ffffff':'#ffd040',3);
   cx.strokeStyle='#8a6a3a';cx.strokeRect(x-1.5,y-1.5,w+3,h+3);
-  if(!lastTouchOverlay)text('N map   V size',x+w,y+h+3,'#a89878',5,'right');
+  text(touchActive()?'Tap: map':'N map   V size',x+w,y+h+3,'#a89878',5,'right');
   reg(x-2,y-2,w+4,h+4,()=>{ui={mode:'map'};Snd.menu()});
 }
 
@@ -187,7 +188,7 @@ function drawQuestMarker(){
 // ---------- quest tracker ----------
 let qtLast='',qtT=0;
 function drawTracker(y){
-  const lines=[{t:QUEST[flags.stage],c:'#a8e0a0'}];
+  const lines=[{t:questNow(),c:'#a8e0a0'}];
   for(const sq of sideQuests())lines.push({t:sq,c:'#f0d890'});
   for(const q of activeQuestLines())lines.push({t:q,c:'#ffb870'});
   const key=lines.map(l=>l.t).join('|');
@@ -267,35 +268,21 @@ function emblem(spr,x,y,w,h,col){
 // ---------- main HUD ----------
 function drawHUD(){
   // ---- status panel: portrait, hearts, resource symbols, experience stars
-  const px0=6,py0=6,bx=px0+35,nH=8+((flags&&flags.fruits)||0),HPR=14,rows=Math.ceil(nH/HPR),ph=rows*8+38;
+  const px0=6,py0=6,bx=px0+35,nH=8+((flags&&flags.fruits)||0),HPR=14,rows=Math.ceil(nH/HPR),ph=rows*8+30;
   cx.fillStyle='rgba(16,10,6,.78)';cx.fillRect(px0,py0,158,ph);cx.strokeStyle='#8a6a3a';cx.strokeRect(px0+.5,py0+.5,157,ph-1);
   // portrait
   cx.fillStyle='#241810';cx.fillRect(px0+3,py0+3,28,28);cx.strokeStyle=P.hero.color;cx.strokeRect(px0+3.5,py0+3.5,27,27);
   cx.fillStyle=P.hero.color;cx.fillRect(px0+9,py0+9,16,16);cx.fillStyle=P.hero.light;cx.fillRect(px0+11,py0+11,6,6);
-  cx.fillStyle='#1a110a';cx.fillRect(px0+3,py0+23,13,8);text(String(P.lvl),px0+9.5,py0+23.5,'#ffe9a0',7,'center',true);
-  if(P.pts>0){cx.fillStyle='#2a6a2a';cx.fillRect(px0+20,py0+23,11,8);text('+',px0+25.5,py0+23,'#fff',7,'center',true)}
   // hearts: every heart is maxHp/nH health (more hearts with every Heart Fruit), half-hearts count
   const HS=hudSprites(),hf=clamp(P.hp/P.maxHp,0,1),low=hf<.3&&Math.floor(time*5)%2;
   for(let i=0;i<nH;i++){
     const fill=clamp(hf*nH-i,0,1),hx=bx+(i%HPR)*8,hy=py0+4+Math.floor(i/HPR)*8;
     cx.drawImage(fill>=.75?(low?HS.heartLow:HS.heart):fill>=.25?HS.heartHalf:HS.heartEmpty,hx,hy);
   }
-  // resource and experience: ornate bars (gold frame, bevel, notches, gloss) with an emblem socket on the left
-  const ry=py0+4+rows*8+3,bw=104,bbx=bx+10;
-  const RC={Rage:['#ffb070','#e0502e','#8a2410'],Stamina:['#d0ffb0','#7fd06a','#357a2a'],Mana:['#c0e0ff','#5aa0ff','#254f9a'],Energy:['#fff8a0','#e8d040','#8a7416']};
-  const rc=RC[P.hero.res]||RC.Rage;
-  emblem(HS.res[P.hero.res]||HS.res.Rage,bx,ry,5,7,rc[1]);
-  fancyBar(bbx,ry,bw,7,clamp(P.res/P.resMax,0,1),rc);
-  text(String(Math.floor(P.res)),bbx+bw/2,ry+.5,'#fff',5,'center');
-  const xy=ry+12,xf=P.lvl>=MAXLVL?1:clamp(P.xp/xpNeed(P.lvl),0,1);
-  emblem({empty:HS.xpEmpty,full:HS.xpFull},bx,xy,5,5,'#b890e8');
-  fancyBar(bbx,xy,bw,5,xf,['#f0e0ff','#b890e8','#5a3a8a']);
   // gold, keys, hints
   const gy=py0+ph-10;
   text(`${P.gold}g`,px0+6,gy,'#ffd040',6);
   if(M.dungeon)text(`Keys ${P.keys}`,px0+52,gy,'#ffe040',6);
-  if(P.sp>0)text(`${P.sp} skill pt (T)`,px0+154,gy,'#8fd0ff',6,'right');
-  else if(P.pts>0)text(`${P.pts} attr pt (I)`,px0+154,gy,'#ffe040',6,'right');
   // ---- buffs
   let by=py0+ph+4;
   P.buffs.forEach((b,i)=>{
@@ -304,23 +291,23 @@ function drawHUD(){
   });
   if(P.buff){const i=P.buffs.length,x=px0+i*22;cx.fillStyle='rgba(16,10,6,.78)';cx.fillRect(x,by,20,14);cx.strokeStyle='#8a3a2a';cx.strokeRect(x+.5,by+.5,19,13);text('RAGE',x+10,by+1,'#ff8060',5,'center');text(Math.ceil(P.buff.t)+'s',x+10,by+7,'#ffb090',6,'center')}
   by+=(P.buffs.length||P.buff)?17:0;
-  drawTracker(by);
+  if(M.id!=='house_shed')drawTracker(by);   // the trophy wall of the shed needs the room
   drawQuestMarker();
   // ---- minimap
   drawMinimap();
   // ---- skill bar
   if(!lastTouchOverlay){
     const slots=[
-      {key:'J',kind:'attack',cd:P.atkT/P.atkCd,label:'Attack'},
-      ...[0,1,2].map(i=>{const sk=SKILLS[P.bound[i]];return sk?{key:['K','L',';'][i],kind:sk.ult?'star':(SKILLGLYPH[sk.id]||'star'),cd:P.cd[i]/P.cdMax[i],cdT:P.cd[i],cost:sk.cost,label:sk.name,ult:sk.ult,slot:i}:{key:['K','L',';'][i],empty:true}}),
-      {key:'SPC',kind:'roll',cd:P.rollCd/.8,label:'Roll'}
+      ...(flags.sword?[{key:'J',kind:'attack',cd:P.atkT/P.atkCd,label:'Attack'}]:[]),
+      ...[0,1].map(i=>{const k=toolIn(i),ki=k&&KEYITEMS.find(q=>q.k===k),t=P.tcd?P.tcd[i]:0;return ki?{key:['K','L'][i],tool:ki,cd:t/(P.tcdMax?P.tcdMax[i]:1),cdT:t,label:ki.n}:{empty:true}}).filter(s=>!s.empty),
+      ...(flags.shield?[{key:'SPC',kind:'shield',cd:0,label:'Shield',on:P.blocking}]:[])
     ];
     slots.forEach((s,i)=>{
-      const x=W-5*29-6+i*29,y=H-34;
+      const x=W-6-slots.length*29+i*29,y=H-34;
       cx.fillStyle='#1a110a';cx.fillRect(x,y,26,26);
       const poor=s.cost&&P.res<s.cost;
       cx.strokeStyle=s.empty?'#3a2c1c':s.ult?'#e8a030':poor?'#6a3030':'#8a6a3a';cx.strokeRect(x+.5,y+.5,25,25);
-      if(!s.empty){glyph(s.kind,x+4,y+4,18,poor?'#7a5a5a':P.hero.light,'#ffffff')}
+      if(!s.empty){if(s.tool)drawIcon(s.tool.icon,s.tool.c,x+4,y+4,1.8);else glyph(s.kind,x+4,y+4,18,poor?'#7a5a5a':P.hero.light,'#ffffff')}
       if(s.cd>0){cx.fillStyle='rgba(0,0,0,.65)';cx.fillRect(x+1,y+1,24,Math.round(24*clamp(s.cd,0,1)));if(s.cdT>0)text(s.cdT.toFixed(s.cdT<10?1:0),x+13,y+9,'#fff',7,'center',true)}
       text(s.key,x+2,y+1,'#fff',5);
       if(s.cost)text(String(s.cost),x+24,y+1,poor?'#ff8070':'#8fd0ff',5,'right');
@@ -336,18 +323,19 @@ function drawHUD(){
     cx.fillStyle='rgba(255,255,255,.18)';cx.fillRect(bx,15,Math.round(bw*f),2);
     cx.fillStyle='#0c0805';cx.fillRect(bx+Math.round(bw*.67)-1,14,2,10);cx.fillRect(bx+Math.round(bw*.34)-1,14,2,10);
     text(bi.name,bx+bw/2,2,'#ffd0a0',8,'center',true);
-    if(e.phaseLock>0)text('IMMUNE',bx+bw/2,26,'#aab0b8',6,'center',true);
+
   }
   for(const e of E)if(e.mini&&!e.dead&&e.state!=='idle'){bar(W/2-70,H-52,140,6,e.hp/e.maxHp,'#d89a20');text(e.mini,W/2,H-62,'#ffe0a0',7,'center',true);break}
   // ---- quick bar: potion (Q) and three quick slots (1 2 3)
   {
-    const qs=[{id:'hp',key:'Q'},{id:P.quick[0],key:'1'},{id:P.quick[1],key:'2'},{id:P.quick[2],key:'3'}],qx=W/2-54;
+    const qs=[{id:'hp',key:'Q'},{id:'scroll',key:'R'}],qx=W/2-26;
+    if(flags.jar>0)qs.push({id:'jar',key:''});
     qs.forEach((q,i)=>{
-      const x=qx+i*28,y=H-27,hp=q.id==='hp',d=hp?{icon:'potion',c:'#e04a4a'}:(q.id?CONS[q.id]:null),n=hp?P.potions:(q.id?(P.cons[q.id]||0):0);
+      const x=qx+i*28,y=H-27,hp=q.id==='hp',d=hp?{icon:'potion',c:'#e04a4a'}:q.id==='jar'?{icon:'gem',c:'#a0ff80'}:(q.id?CONS[q.id]:null),n=hp?P.potions:q.id==='scroll'?(flags.scrolls||0):q.id==='jar'?flags.jar:(q.id?(P.cons[q.id]||0):0);
       cx.fillStyle='#1a110a';cx.fillRect(x,y,24,22);cx.strokeStyle=d&&n?'#8a6a3a':'#3a2c1c';cx.strokeRect(x+.5,y+.5,23,21);
       if(d){cx.globalAlpha=n?1:.35;drawIcon(d.icon,d.c,x+4,y+1,2);cx.globalAlpha=1;text('x'+n,x+22,y+12,n?'#ffe9a0':'#6a5a48',6,'right')}
       text(q.key,x+3,y+1,'#fff',5);
-      reg(x,y,24,22,()=>{if(hp)usePotion();else if(q.id)useCons(q.id)});
+      reg(x,y,24,22,()=>{if(hp)usePotion();else if(q.id==='scroll')useScroll();else if(q.id&&q.id!=='jar')useCons(q.id)});
     });
   }
   // ---- banner and toasts
