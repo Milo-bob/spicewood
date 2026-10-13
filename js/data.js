@@ -38,76 +38,13 @@ const ENEMIES={
   ghost:{name:'Wailing Ghost',hp:24,dmg:8,speed:52,xp:14,gold:[3,8],hw:5,hh:5,aggro:150},
   boss:{name:'Old Barkfather',hp:520,dmg:14,speed:22,xp:200,gold:[80,120],hw:12,hh:10,aggro:150}
 };
-
-// ---------- Items ----------
-const SLOTS=['weapon','helm','chest','gloves','boots','amulet','ring1','ring2'];
-const SLOT_LABEL={weapon:'Weapon',helm:'Helm',chest:'Chest',gloves:'Gloves',boots:'Boots',amulet:'Amulet',ring1:'Ring',ring2:'Ring'};
-const SLOT_ICON={weapon:'W',helm:'H',chest:'C',gloves:'G',boots:'B',amulet:'A',ring:'R'};
-const RARITY=[
-  {n:'Common',c:'#d8d8d8',m:1,aff:0},
-  {n:'Fine',c:'#5ad05a',m:1.12,aff:1},
-  {n:'Rare',c:'#4a9cf0',m:1.25,aff:2},
-  {n:'Epic',c:'#b25cf0',m:1.45,aff:3},
-  {n:'Legendary',c:'#ff9a2a',m:1.75,aff:4}
-];
-const BASES={helm:['Cap','Hood','Helm','Crown'],chest:['Jerkin','Tunic','Vest','Mail','Robe'],gloves:['Gloves','Mitts','Gauntlets'],
-  boots:['Boots','Sandals','Greaves'],amulet:['Amulet','Charm','Pendant'],ring:['Ring','Band','Signet']};
-const PREFIX=['Cinnamon','Clove','Amber','Ember','Thorn','Saffron','Pepper','Anise','Nutmeg','Ginger','Cardamom'];
-const AFFDEF={
-  str:{fmt:v=>`+${v} Strength`,roll:i=>Math.max(1,Math.round(i*.55*rand(.7,1.2)+1))},
-  dex:{fmt:v=>`+${v} Dexterity`,roll:i=>Math.max(1,Math.round(i*.55*rand(.7,1.2)+1))},
-  int:{fmt:v=>`+${v} Intellect`,roll:i=>Math.max(1,Math.round(i*.55*rand(.7,1.2)+1))},
-  vit:{fmt:v=>`+${v} Vitality`,roll:i=>Math.max(1,Math.round(i*.55*rand(.7,1.2)+1))},
-  hp:{fmt:v=>`+${v} Health`,roll:i=>Math.round(i*3.5*rand(.8,1.3)+4)},
-  armor:{fmt:v=>`+${v} Armor`,roll:i=>Math.round(i*.7*rand(.8,1.2)+1)},
-  crit:{fmt:v=>`+${v}% Crit`,roll:i=>Math.round(rand(1,2)+i*.15)},
-  speed:{fmt:v=>`+${v}% Move Speed`,roll:i=>Math.round(rand(2,4)+i*.15)}
-};
-function rollRarity(minR){
-  const x=Math.random();
-  const r=x<.60?0:x<.85?1:x<.95?2:x<.99?3:4;
-  return Math.max(r,minR||0);
-}
-function genItem(ilvl,o){
-  o=o||{};
-  const hero=o.hero||(typeof P!=='undefined'&&P?P.hero:HEROES[0]);
-  let slot=o.slot;
-  if(!slot){
-    const x=Math.random();
-    slot=x<.22?'weapon':x<.34?'helm':x<.48?'chest':x<.60?'gloves':x<.72?'boots':x<.86?'amulet':'ring';
-  }
-  const r=rollRarity(o.minR),R=RARITY[r];
-  const it={slot,r,ilvl,aff:[],name:''};
-  if(slot==='weapon'){
-    it.dmg=Math.round((3+ilvl*1.7)*R.m*rand(.9,1.1));
-    it.base=pick(hero.weaponNames);
-  }else{
-    const sm={chest:1.4,helm:1,gloves:.7,boots:.7,amulet:0,ring:0}[slot];
-    if(sm)it.armor=Math.max(1,Math.round((1+ilvl*.9)*R.m*sm));
-    it.base=pick(BASES[slot]);
-  }
-  let n=R.aff;if((slot==='amulet'||slot==='ring')&&n<1)n=1;
-  const pool=['str','dex','int','vit','hp','armor','crit','speed','hp',hero.primary,hero.primary,hero.primary,'vit'];
-  const used=new Set();
-  let guard=0;
-  while(it.aff.length<n&&guard++<50){
-    const k=pick(pool);if(used.has(k))continue;used.add(k);
-    it.aff.push({k,v:AFFDEF[k].roll(ilvl)});
-  }
-  it.name=pick(PREFIX)+' '+it.base+(r===4?' of Spicewood':'');
-  return it;
-}
-const upMul=it=>1+.12*(it.up||0);
-const itemDmg=it=>it.dmg?Math.round(it.dmg*upMul(it)):0;
-const itemArmor=it=>it.armor?Math.round(it.armor*upMul(it)):0;
-function sellValue(it){return Math.round((1+it.r*it.r*1.5)*it.ilvl*1.5+3)+(it.up||0)*6}
-function itemLines(it){
-  const L=[];
-  L.push({t:it.name,c:RARITY[it.r].c});
-  L.push({t:`${RARITY[it.r].n} ${SLOT_LABEL[it.slot==='ring'?'ring1':it.slot]}  (iLvl ${it.ilvl})`,c:'#a89878'});
-  if(it.dmg)L.push({t:`${itemDmg(it)} Damage`+(it.up?` (+${it.up})`:''),c:'#ffffff'});
-  if(it.armor)L.push({t:`${itemArmor(it)} Armor`+(it.up?` (+${it.up})`:''),c:'#ffffff'});
-  for(const a of it.aff)L.push({t:AFFDEF[a.k].fmt(a.v),c:'#8fd0ff'});
-  L.push({t:`Sells for ${sellValue(it)}g`,c:'#e8c050'});
-  return L;
-}
+// variants for the far regions (tinted sprites, same behaviours)
+Object.assign(ENEMIES,{
+  frostwolf:Object.assign({},ENEMIES.wolf,{name:'Frost Wolf',hp:30,dmg:7,speed:68,xp:12}),
+  sandbeetle:Object.assign({},ENEMIES.beetle,{name:'Dune Beetle',hp:36,dmg:8,xp:11}),
+  thornbrute:Object.assign({},ENEMIES.brute,{name:'Thornback Brute',hp:90,dmg:13,xp:30}),
+  stormbat:Object.assign({},ENEMIES.bat,{name:'Storm Bat',hp:20,dmg:7,speed:78,xp:12}),
+  magmabrute:Object.assign({},ENEMIES.brute,{name:'Magma Brute',hp:100,dmg:15,xp:36}),
+  crystalghost:Object.assign({},ENEMIES.ghost,{name:'Crystal Wraith',hp:34,dmg:10,xp:18}),
+  frostskel:Object.assign({},ENEMIES.skeleton,{name:'Frostbound Walker',hp:52,dmg:11,xp:18})
+});

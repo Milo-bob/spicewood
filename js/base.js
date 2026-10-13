@@ -50,10 +50,9 @@ function entries(filter,bagOnly){
   return L;
 }
 function setUp(it,n){it.bn=it.bn||it.name;it.up=n;it.name=n?`${it.bn} +${n}`:it.bn}
-function rollAffixList(ilvl,n){
-  const hero=P.hero,pool=['str','dex','int','vit','hp','armor','crit','speed','hp',hero.primary,hero.primary,hero.primary,'vit'];
-  const out=[],used=new Set();let g=0;
-  while(out.length<n&&g++<60){const k=pick(pool);if(used.has(k))continue;used.add(k);out.push({k,v:AFFDEF[k].roll(ilvl)})}
+function rollAffixList(ilvl,n,slot){
+  const out=[],used=new Set();
+  for(let g=0;out.length<n&&g<40;g++){const k=rollAffixKey(slot||'weapon',P.hero,used);if(!k)break;out.push({k,v:AFFDEF[k].roll(ilvl)})}
   return out;
 }
 function salvageYield(it){
@@ -81,9 +80,10 @@ function smithMenu(){
     {t:'Upgrade an item (+)',fn(){ui=upgradeMenu();return true}},
     {t:'Reforge affixes',fn(){ui=reforgeMenu();return true}},
     {t:'Salvage items for materials',fn(){ui=salvageMenu();return true}},
-    {t:()=>`Sell all Common and Fine items (${P.bag.filter(i=>i.r<=1).reduce((s,i)=>s+sellValue(i),0)}g)`,fn(){
-      const junk=P.bag.filter(i=>i.r<=1);if(!junk.length){toast('Nothing to sell','#ff8070');return true}
-      const g=junk.reduce((s,i)=>s+sellValue(i),0);P.bag=P.bag.filter(i=>i.r>1);P.gold+=g;Snd.coin();toast(`Sold ${junk.length} items for ${g}g`);return true}},
+    {t:'Sockets and gems',fn(){ui=socketMenu();return true}},
+    {t:()=>`Sell all Common and Fine items (${P.bag.filter(i=>i.r<=1&&!i.lock&&!i.gems).reduce((s,i)=>s+sellValue(i),0)}g, locked and socketed items stay)`,fn(){
+      const junk=P.bag.filter(i=>i.r<=1&&!i.lock&&!i.gems);if(!junk.length){toast('Nothing to sell','#ff8070');return true}
+      const g=junk.reduce((s,i)=>s+sellValue(i),0);P.bag=P.bag.filter(i=>!junk.includes(i));P.gold+=g;Snd.coin();toast(`Sold ${junk.length} items for ${g}g`);return true}},
     upgradeOption('smithy'),
     {t:'Leave',fn(){}}],true,matsLine);
 }
@@ -116,13 +116,71 @@ function reforgeMenu(){
   const opts=entries(it=>it.aff.length>0).map(({it,tag})=>({
     t:()=>`[${tag}] ${it.name}  (${costText(cost)})`,
     fn(){if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
-      pay(cost);it.aff=rollAffixList(it.ilvl,it.aff.length);recalc();Snd.spell();toast('Affixes reforged: '+it.aff.map(a=>AFFDEF[a.k].fmt(a.v)).join(', '),'#8fd0ff');return true}}));
+      pay(cost);it.aff=rollAffixList(it.ilvl,it.aff.length,it.slot);recalc();Snd.spell();toast('Affixes reforged: '+it.aff.map(a=>AFFDEF[a.k].fmt(a.v)).join(', '),'#8fd0ff');return true}}));
   if(!opts.length)opts.push({t:'(no items with affixes)',fn(){return true}});
   opts.push(back(smithMenu));
   return menu('Reforge which item?',opts,true,matsLine);
 }
+const gemLine=()=>Object.keys(P.gems).filter(k=>P.gems[k]>0).map(k=>`${P.gems[k]}x ${gemName(gemFromKey(k))}`).join('  ')||'No gems yet (they drop from elites, chests and bosses)';
+function socketMenu(){
+  return menu('Sockets and gems',[
+    {t:'Add a socket to an item (max 3)',fn(){ui=addSocketMenu();return true}},
+    {t:'Insert a gem',fn(){ui=insertGemMenu();return true}},
+    {t:'Remove a gem (destroys it)',fn(){ui=removeGemMenu();return true}},
+    {t:'Combine 3 gems into the next tier',fn(){ui=combineGemMenu();return true}},
+    back(smithMenu)],true,gemLine);
+}
+function addSocketMenu(){
+  const opts=entries(it=>(it.gems?it.gems.length:0)<3).map(({it,tag})=>{
+    const n=it.gems?it.gems.length:0,cost={ore:6+4*n,shell:2+n,gold:30+P.lvl*5};
+    return{t:()=>`[${tag}] ${it.name}  (${n} sockets)  ${costText(cost)}`,fn(){
+      if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+      pay(cost);it.gems=(it.gems||[]).concat([null]);Snd.level();toast('A new socket!','#8fd0ff');ui=addSocketMenu();return true}};
+  });
+  if(!opts.length)opts.push({t:'(nothing to add sockets to)',fn(){return true}});
+  opts.push(back(socketMenu));
+  return menu('Add a socket to which item?',opts,true,matsLine);
+}
+function insertGemMenu(){
+  const opts=entries(it=>it.gems&&it.gems.includes(null)).map(({it,tag})=>({
+    t:()=>`[${tag}] ${it.name}  (${it.gems.filter(g=>!g).length} empty)`,
+    fn(){ui=pickGemMenu(it);return true}}));
+  if(!opts.length)opts.push({t:'(no item with an empty socket)',fn(){return true}});
+  opts.push(back(socketMenu));
+  return menu('Insert into which item?',opts,true,gemLine);
+}
+function pickGemMenu(it){
+  const keys=Object.keys(P.gems).filter(k=>P.gems[k]>0);
+  const opts=keys.map(k=>{const g=gemFromKey(k);return{t:()=>`${gemName(g)}  x${P.gems[k]}   ${gemLabel(g)}`,fn(){
+    const i=it.gems.indexOf(null);if(i<0)return true;
+    it.gems[i]=g;P.gems[k]--;recalc();Snd.level();toast(`${gemName(g)} set in ${it.name}`,GEMS[g.t].c);
+    ui=it.gems.includes(null)?pickGemMenu(it):insertGemMenu();return true}}});
+  if(!opts.length)opts.push({t:'(you have no gems)',fn(){return true}});
+  opts.push(back(insertGemMenu));
+  return menu(`Which gem for ${it.name}?`,opts,true,gemLine);
+}
+function removeGemMenu(){
+  const cost={gold:40+P.lvl*3},opts=[];
+  for(const{it,tag}of entries(i=>i.gems&&i.gems.some(Boolean)))it.gems.forEach((g,gi)=>{if(!g)return;opts.push({t:()=>`[${tag}] ${it.name}: ${gemName(g)}  (${cost.gold}g)`,fn(){
+    if(!canPay(cost)){toast('Not enough gold','#ff8070');return true}
+    pay(cost);it.gems[gi]=null;recalc();Snd.coin();toast('Gem crushed','#ffb070');ui=removeGemMenu();return true}})});
+  if(!opts.length)opts.push({t:'(no socketed gems)',fn(){return true}});
+  opts.push(back(socketMenu));
+  return menu('Remove which gem?',opts,true,matsLine);
+}
+function combineGemMenu(){
+  const opts=Object.keys(P.gems).filter(k=>P.gems[k]>=3&&+k.slice(-1)<3).map(k=>{
+    const g=gemFromKey(k),cost={gold:25*g.tier};
+    return{t:()=>`3x ${gemName(g)}  ->  ${gemName({t:g.t,tier:g.tier+1})}  (${cost.gold}g)`,fn(){
+      if(!canPay(cost)){toast('Not enough gold','#ff8070');return true}
+      pay(cost);P.gems[k]-=3;addGem({t:g.t,tier:g.tier+1});Snd.level();toast('A finer gem!',GEMS[g.t].c);ui=combineGemMenu();return true}};
+  });
+  if(!opts.length)opts.push({t:'(you need 3 gems of the same kind and tier)',fn(){return true}});
+  opts.push(back(socketMenu));
+  return menu('Combine which gems?',opts,true,gemLine);
+}
 function salvageMenu(){
-  const opts=entries(null,true).map(({it})=>({
+  const opts=entries(i=>!i.lock,true).map(({it})=>({
     t:()=>`${it.name}  ->  ${costText(salvageYield(it))}`,
     fn(){const y=salvageYield(it);const i=P.bag.indexOf(it);if(i<0)return true;P.bag.splice(i,1);for(const k in y)addMat(k,y[k]);Snd.coin();toast('Salvaged: '+costText(y));ui=salvageMenu();return true}}));
   if(!opts.length)opts.push({t:'(bag is empty)',fn(){return true}});
@@ -133,7 +191,7 @@ function salvageMenu(){
 // ---------- buffs (elixirs and meals) ----------
 function addBuff(cat,name,mods,secs){
   P.buffs=P.buffs.filter(b=>b.cat!==cat);
-  P.buffs.push({cat,name,mods,t:secs});recalc();Snd.pickup();toast(`${name} (${Math.round(secs/60)} min)`,'#8fd0ff');
+  P.buffs.push({cat,name,mods,t:secs});recalc();Snd.pickup();toast(secs<120?`${name} (${secs}s)`:`${name} (${Math.round(secs/60)} min)`,'#8fd0ff');
 }
 
 // ---------- Alchemist ----------
@@ -152,8 +210,21 @@ function alchMenu(){
     brew(1,{herb:2},'Brew 1 potion'),brew(5,{herb:8},'Brew 5 potions'),
     elixir('elixir','Elixir of Might',{herb:3,shell:1},l=>({dmgPct:10*l}),2),
     elixir('elixir','Elixir of Stone',{herb:3,leather:1},l=>({armor:10*l-5}),2),
+    {t:'Consumables: Focus Draught, bombs, scrolls, tonics...',fn(){ui=consMenu();return true}},
     upgradeOption('alch'),
     {t:'Leave',fn(){}}],true,matsLine);
+}
+function consMenu(){
+  const lv=baseLv('alch'),cap=9+3*(lv-1);
+  const item=(id,cost,need)=>({t:()=>lv<need?`${CONS[id].n}  (needs Alchemist Lv ${need})`:`${CONS[id].n}  (${costText(cost)})  have ${P.cons[id]||0}/${cap}`,fn(){
+    if(lv<need){toast(`Upgrade the Alchemist to Lv ${need}`,'#ff8070');return true}
+    if((P.cons[id]||0)>=cap){toast('You cannot carry more','#ff8070');return true}
+    if(!canPay(cost)){toast('Not enough materials','#ff8070');return true}
+    pay(cost);addCons(id);Snd.pickup();return true}});
+  return menu('Alchemist: consumables',[
+    item('respot',{herb:2,gold:15},1),item('bomb',{ore:2,shell:1,gold:20},1),item('scroll',{shell:1,gold:60},1),
+    item('swift',{herb:3,leather:1},2),item('stone',{ore:2,herb:2},2),
+    back(alchMenu)],true,()=>CONSORDER.map(id=>`${CONS[id].n.split(' ')[0]} ${P.cons[id]||0}`).join('  '));
 }
 
 // ---------- Tavern ----------

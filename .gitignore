@@ -1,2 +1,5 @@
+DESIGN.md
+tools/
+*.jpg
 node_modules/
 .vercel/

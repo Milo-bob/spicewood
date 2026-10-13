@@ -1,9 +1,9 @@
 'use strict';
-const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR:9,DWALL:10,VINE:11,LOCK:12,SHROOM:13,FENCE:14,OAK:15,LONE:16,BLOCK:17,FLOWER:18,CROP:19,BARRIER:24,SHALLOW:25,DBLOCK:26,GORGE:27,BRIDGE:28,SCREE:29,CRAG:30,MOSS:31,GTREE:32};
-const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,0,1,1,0,0,1,0,1];
+const T={GRASS:0,LEAF:1,PATH:2,TREE:3,WATER:4,WALL:5,ROOF:6,DOOR:7,ROCK:8,DFLOOR:9,DWALL:10,VINE:11,LOCK:12,SHROOM:13,FENCE:14,OAK:15,LONE:16,BLOCK:17,FLOWER:18,CROP:19,BARRIER:24,SHALLOW:25,DBLOCK:26,GORGE:27,BRIDGE:28,SCREE:29,CRAG:30,MOSS:31,GTREE:32,SNOW:33,SAND:34,PINE:35,CACTUS:36,CRYSTAL:37,JTREE:38,ASH:39,OBSID:40};
+const SOLID=[0,0,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,1,0,1,0,1,1,0,0,1,0,1,0,0,1,1,1,1,0,1];
 
 function mk(id,name,w,h,fill){
-  return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],plates:[],gates:[],rooms:[],mist:false,dark:false};
+  return{id,name,w,h,t:new Uint8Array(w*h).fill(fill),warps:[],npcs:[],chests:[],spawns:[],labels:[],props:[],critters:[],chimneys:[],plates:[],gates:[],rooms:[],seals:[],mist:false,dark:false};
 }
 const gt=(m,x,y)=>(x<0||y<0||x>=m.w||y>=m.h)?-1:m.t[y*m.w+x];
 const st=(m,x,y,v)=>{if(x>=0&&y>=0&&x<m.w&&y<m.h)m.t[y*m.w+x]=v};
@@ -15,7 +15,7 @@ function disc(m,cx,cy,r,v,only){
 }
 function polyline(m,pts,fn){
   for(let k=0;k<pts.length-1;k++){
-    const[a,b]=[pts[k],pts[k+1]],n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])*2);
+    const[a,b]=[pts[k],pts[k+1]],n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])*1.1);
     for(let s=0;s<=n;s++){const t=s/n;fn(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t)}
   }
 }
@@ -45,23 +45,103 @@ function building(m,x,y,w,h,roof){
 
 
 function addProp(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1},extra||{}));st(m,tx,ty,m.dark?T.DBLOCK:T.BLOCK)}
+// waypoint plinth (fast travel). Positions per zone; the 3x3 ground around it is cleared.
+const WPS={};   // zone id -> waypoint tile in the world map (filled in when the world is built)
+function waypoint(m,ground,pos){
+  const w=pos||WPS[m.id];if(!w)return;
+  for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)st(m,w[0]+i,w[1]+j,ground===undefined?T.GRASS:ground);
+  addProp(m,'waypoint',w[0],w[1],{zone:m.id});
+  (m.reserve=m.reserve||[]).push([w[0]-2,w[1]-2,w[0]+2,w[1]+2]);
+}
+// a boulder seal: solid until flag is set (opened from the other side of a shortcut)
+function seal(m,flag,tiles,text){m.seals.push({flag,tiles,text});for(const[x,y]of tiles)st(m,x,y,T.ROCK)}
+// hidden pocket: carve an L-shaped corridor from (fx,fy) to a clearing at (px,py), gate it, and put a cave mouth at the far end.
+// gate: 'boots' (shallow water), 'hook' (gorge) or 'sickle' (vines); the lantern/heartseed caves use plain warps with a `need`.
+function pocketGeo(o){const dy=o.py>o.fy?1:-1;return{dy,my:o.py+dy*2,rx:(o.px+1)*TS,ry:(o.py+dy)*TS+8}}
+function pocket(m,r,o,cave){
+  const g=()=>r()<.3?T.LEAF:T.GRASS,{fx,fy,px,py,gate}=o,G=pocketGeo(o),dy=G.dy,dx=px>fx?1:-1;
+  for(let x=fx;x!==px+dx;x+=dx)for(let y=fy-1;y<=fy+1;y++)st(m,x,y,g());
+  for(let y=fy;y!==py+dy;y+=dy)for(let x=px-1;x<=px+1;x++)st(m,x,y,g());
+  const gy=py-dy*3;
+  for(let y=gy-2;y<=gy+2;y++)if(Math.abs(y-fy)>1&&Math.abs(y-py)>2)for(const x of[px-3,px-2,px+2,px+3])st(m,x,y,T.TREE);
+  disc(m,px,py,2.8,g);
+  const band=gate==='boots'?T.SHALLOW:gate==='hook'?T.GORGE:T.VINE;
+  for(let x=px-1;x<=px+1;x++){st(m,x,gy,band);st(m,x,gy-dy,band)}
+  st(m,px,G.my,T.OAK);st(m,px+1,G.my,T.OAK);
+  m.warps.push({x:px*TS,y:G.my*TS,w:2*TS,h:TS,to:cave,tx:11.5*TS,ty:13*TS});
+  (m.reserve=m.reserve||[]).push([Math.min(fx,px)-3,Math.min(fy,py)-3,Math.max(fx,px)+3,Math.max(fy,py)+3]);
+}
+
+// ---- cave entrances: find a spot on the zone map, embed a cave mouth, register it in CAVES (maps built lazily in dungeons.js)
+const CAVES={};
+const CAVENAMES={glade:['Hollow Burrow','Thornroot Den','Dewfall Cave'],amber:['Mossy Cleft','Sporefall Cave','Amber Seam'],marsh:['Reedhole','Frog Hollow'],rust:['Slag Pit','Bone Quarry','Scrapyard Cave'],grove:['Whisper Barrow','Pale Hollow','Lantern Barrow'],heart:['Heartroot Cave','Rootwarren'],saffron:['Strawcutter Den','Golden Burrow','Windfall Cave'],ember:['Ashfall Vent','Cinder Hollow','Slagheap Cave','Ember Burrow'],tangle:['Thornroot Cave','Vinecoil Den','Gnarled Hollow','Mossjaw Cave','Strangler Pit'],delta:['Reed Burrow','Amber Cave','Peppercorn Hole'],mesa:['Dust Cave','Scorpion Den','Dune Hollow','Sunstone Cave'],steppe:['Windbreak Cave','Hawk Roost','Barrow Hill','Gale Hollow'],spire:['Slag Vent','Obsidian Cave','Cinder Pit','Magma Seam'],gulch:['Geode Cave','Shard Hollow','Prism Den'],ridge:['Icefall Cave','Frostbite Den','Snowdrift Hollow','Rime Cave','Glacier Seam']};
+function caves(m,r,count,reach){
+  const names=CAVENAMES[m.id]||[];
+  const ok=t=>WALKG.has(t);
+  const solid=t=>SOLIDWOOD.has(t);
+  const own=m.own||(()=>true),ox=m.ox||0,oy=m.oy||0;   // zone maps inside the world: only inside the region, exits in world coordinates
+  const spots=[];
+  for(let n=1;n<=count;n++){
+    let found=null;
+    for(let pass=0;pass<2&&!found;pass++)for(let k=0;k<2400&&!found;k++){
+      const x=4+Math.floor(r()*(m.w-9)),y=4+Math.floor(r()*(m.h-10));
+      if(!(own(x-3,y-2)&&own(x+4,y-2)&&own(x-3,y+6)&&own(x+4,y+6)&&own(x,y)&&own(x+1,y+4)))continue;
+      if(pass===0&&!(solid(gt(m,x,y))&&solid(gt(m,x+1,y))))continue;
+      let good=true;
+      for(let j=1;j<=3&&good;j++)for(let i=-1;i<=2;i++)if(!ok(gt(m,x+i,y+j))){good=false;break}
+      if(!good)continue;
+      if(reach&&!(reach[(y+2)*m.w+x]&&reach[(y+2)*m.w+x+1]&&reach[(y+1)*m.w+x]))continue;
+      const cxp=(x+1)*TS,cyp=(y+2)*TS;
+      if(m.spawns.some(sp=>Math.hypot(sp.x-cxp,sp.y-cyp)<64))continue;
+      if(m.warps.some(w=>Math.hypot(w.x+w.w/2-cxp,w.y+w.h/2-cyp)<110))continue;
+      if(m.props.some(p=>Math.abs(p.tx-x)<4&&Math.abs(p.ty-y)<5))continue;
+      if(m.chests.some(c=>Math.hypot(c.x-cxp,c.y-cyp)<48))continue;
+      if(spots.some(s=>Math.hypot(s[0]-x,s[1]-y)<12))continue;
+      found=[x,y];
+    }
+    if(!found)continue;
+    const[x,y]=found;spots.push(found);
+    const id='cave_'+m.id+'_'+n,name=names[n-1]||('Cave '+n);
+    st(m,x,y,T.OAK);st(m,x+1,y,T.OAK);
+    m.warps.push({x:x*TS,y:y*TS,w:2*TS,h:TS,to:id,tx:null,ty:null});
+    (m.reserve=m.reserve||[]).push([x-2,y-1,x+3,y+4]);
+    CAVES[id]={id,n,zone:m.id,name,exit:{to:m.ox===undefined?m.id:'world',tx:(x+1+ox)*TS,ty:(y+2+oy)*TS}};
+  }
+}
 function addDeco(m,k,tx,ty,extra){m.props.push(Object.assign({k,tx,ty,w:1,deco:true},extra||{}))}
+// would a solid object on (x,y) cut the walkable ground around it in two? (local check on the 4 neighbours and their corners)
+function safeBlock(m,x,y){
+  const wk=(i,j)=>{const t=gt(m,i,j);return t>=0&&!SOLID[t]};
+  const n=[wk(x,y-1),wk(x+1,y),wk(x,y+1),wk(x-1,y)],c=[wk(x+1,y-1),wk(x+1,y+1),wk(x-1,y+1),wk(x-1,y-1)];
+  let cnt=0,pairs=0;
+  for(let i=0;i<4;i++){if(n[i])cnt++;if(n[i]&&n[(i+1)%4]&&c[i])pairs++}
+  if(!cnt)return true;
+  const groups=(cnt===4&&pairs===4)?1:cnt-pairs;
+  return groups<=1;
+}
+const WALKG=new Set([0,1,29,31,33,34,39]);
+const SOLIDWOOD=new Set([3,30,32,35,36,37,38,40,8]);
 function scatter(m,r,n,k,ok,avoid,deco){
   let placed=0,guard=0;
-  while(placed<n&&guard++<600){
+  const lim=m.own?4000:600;
+  while(placed<n&&guard++<lim){
     const x=3+Math.floor(r()*(m.w-6)),y=3+Math.floor(r()*(m.h-6)),t=gt(m,x,y);
-    if(t!==T.GRASS&&t!==T.LEAF&&t!==T.SCREE&&t!==T.MOSS)continue;
+    if(!WALKG.has(t))continue;
     if(!ok(x,y)||(avoid&&avoid(x,y)))continue;
+    if(m.reserve&&m.reserve.some(q=>x>=q[0]&&y>=q[1]&&x<=q[2]&&y<=q[3]))continue;
+    if(!deco&&!safeBlock(m,x,y))continue;
     if(deco)addDeco(m,k,x,y);else addProp(m,k,x,y);placed++;
   }
 }
 
 // ================= Hearthmoor (village) =================
-function buildVillage(){
+function buildVillage(open){
+  // open: the village is stamped into the world map (no tree border, no road exits to other maps; the world generator connects the roads)
   const m=mk('village','Hearthmoor',40,30,T.GRASS),r=seeded(11);
   for(let i=0;i<m.t.length;i++)if(r()<.09)m.t[i]=T.LEAF;
   // roads
   rectT(m,2,14,38,2,T.PATH);rectT(m,19,5,2,23,T.PATH);rectT(m,16,12,8,6,T.PATH);
+  if(open){rectT(m,0,14,40,2,T.PATH);rectT(m,19,0,2,30,T.PATH)}
   // buildings
   const B=[[3,6,'Smithy',20,'smithy'],[11,7,'Tavern',T.ROOF,'tavern'],[22,6,'Alchemist',21,'alch'],[31,6,"Elder's House",22,null]];
   for(const[x,w,label,rf,bid]of B){
@@ -82,12 +162,31 @@ function buildVillage(){
     else if((t===T.GRASS)&&r()<.012)st(m,x,y,T.SHROOM);
   }
   const c=t=>(t+.5)*TS;
-  // border of trees (east exit stays open)
-  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x>=m.w-2&&y>=13&&y<=16))st(m,x,y,T.TREE)}
+  if(!open){
+    // border of trees (east exit stays open)
+    for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
+      if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x>=m.w-2&&y>=13&&y<=16)&&!(x<2&&y>=14&&y<=15)&&!(y>=m.h-2&&x>=19&&x<=20)&&!(y<2&&x>=19&&x<=20))st(m,x,y,T.TREE)}
+    }
+    rectT(m,38,14,2,2,T.PATH);
+    m.warps.push({x:39*TS,y:13*TS,w:TS,h:4*TS,to:'glade',tx:arrTo('glade','W').x,ty:arrTo('glade','W').y});
+    // west road: boulder, opened from Ghostbark Grove's side (shortcut)
+    rectT(m,0,14,2,2,T.PATH);
+    seal(m,'scGrove',[[1,14],[1,15]],'A huge boulder blocks the western road. It looks like it could be moved from the other side...');
+    m.warps.push({x:0,y:14*TS,w:TS,h:2*TS,to:'grove',tx:arrTo('grove','E').x,ty:arrTo('grove','E').y});
+    // south road: boulder, opened from Mistwater Marsh's side (shortcut)
+    rectT(m,19,28,2,2,T.PATH);
+    seal(m,'scMarsh',[[19,28],[20,28]],'A huge boulder blocks the southern road. It looks like it could be moved from the other side...');
+    m.warps.push({x:19*TS,y:29*TS,w:2*TS,h:TS,to:'marsh',tx:arrTo('marsh','N').x,ty:arrTo('marsh','N').y});
+    // north road: boulder, opened from Cinderfall Heights' side (shortcut)
+    rectT(m,19,0,2,5,T.PATH);
+    seal(m,'scNorth',[[19,1],[20,1]],'A huge boulder blocks the northern road. It looks like it could be moved from the other side...');
+    m.warps.push({x:19*TS,y:0,w:2*TS,h:TS,to:'ember',tx:arrTo('ember','S').x,ty:arrTo('ember','S').y});
   }
-  rectT(m,38,14,2,2,T.PATH);
-  m.warps.push({x:39*TS,y:13*TS,w:TS,h:4*TS,to:'glade',tx:3*TS,ty:21*TS});
+  // between the smithy and the tavern: thorn vines hide the Root Cellar (needs the Thornsickle)
+  rectT(m,9,2,2,3,T.PATH);rectT(m,8,2,1,3,T.TREE);rectT(m,11,2,1,3,T.TREE);rectT(m,9,4,2,1,T.VINE);
+  st(m,9,2,T.OAK);st(m,10,2,T.OAK);
+  if(!open)GRET.village={tx:10*TS,ty:3.6*TS};
+  m.warps.push({x:9*TS,y:2*TS,w:2*TS,h:TS,to:'grotto_village',tx:11.5*TS,ty:13*TS});
   m.npcs.push(
     {id:'elder',name:'Elder Maren',x:c(22.5),y:c(17),pal:{h:'#e8e8e8',c:'#6a5a8a',k:'#3a2a5a',g:'#d8b040'}},
     {id:'smith',name:'Torvald the Smith',x:c(8),y:c(11),pal:{h:'#4a2a1a',c:'#7a5a3a',k:'#3a2a1a',g:'#a0a0a0'}},
@@ -104,7 +203,8 @@ function buildVillage(){
   for(let y=21;y<=26;y++){st(m,26,y,T.FENCE);st(m,33,y,T.FENCE)}
   st(m,29,21,T.GRASS);st(m,30,21,T.GRASS);
   // plaza
-  prop('fire',17,16);prop('well',22,13);prop('bench',16,12);prop('bench',23,12);
+  waypoint(m,T.PATH,[24,16]);
+  prop('fire',17,16);prop('well',22,13);prop('board',24,19);prop('bench',16,12);prop('bench',23,12);
   // smithy
   prop('anvil',4,10);prop('crate',3,10);prop('barrel',8,10);
   // tavern
@@ -144,465 +244,46 @@ function buildVillage(){
 }
 
 // ================= Ember Glade (compact, hand-placed encounters) =================
-function buildGlade(){
-  const m=mk('glade','Ember Glade',44,30,T.GRASS),r=seeded(7);
-  m.mist=true;
-  for(let i=0;i<m.t.length;i++)if(r()<.22)m.t[i]=T.LEAF;
-  forest(m,r,.58);
-  const ground=()=>r()<.28?T.LEAF:T.GRASS;
-  const PATHS=[
-    [[0,22],[9,22],[14,21],[20,19],[26,19],[32,18]],
-    [[20,19],[19,10]],
-    [[32,18],[31,12],[30,8],[30,4]],
-    [[32,18],[38,19],[42,19]]
-  ];
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.TREE||t===T.ROCK));
-  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.TREE);
-  clear(9,22,4.2);clear(20,19,4.8);clear(32,18,5.4);clear(30,8,3.8);clear(19,9,2.8);clear(30,4,3.5);clear(40,19,3);
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
-  disc(m,9,26,2.2,T.WATER);
-  // border
-  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=20&&y<=24))st(m,x,y,T.TREE)}
-  }
-  rectT(m,0,21,3,3,T.PATH);
-  // oak entrance
-  st(m,29,2,T.OAK);st(m,30,2,T.OAK);
-  m.warps.push({x:29*TS,y:2*TS,w:2*TS,h:TS,to:'dungeon',tx:20*TS+8,ty:29*TS});
-  // vines at the east edge
-  rectT(m,42,17,2,4,T.VINE);
-  m.warps.push({x:0,y:20*TS,w:TS,h:5*TS,to:'village',tx:37*TS,ty:14.5*TS});
-  m.chests.push({id:'g1',x:19*TS+8,y:9*TS+8});
-  // decor
-  for(let y=3;y<m.h-3;y++)for(let x=3;x<m.w-3;x++){
-    const t=gt(m,x,y);
-    if((t===T.GRASS||t===T.LEAF)&&r()<.012)st(m,x,y,T.SHROOM);
-  }
-  // encounters: fixed groups in each clearing
-  const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite});
-  G('beetle',8,21,1);G('beetle',10,23,1);G('beetle',11,21,1);                       // A: warm-up
-  G('wolf',19,18,2);G('wolf',22,20,2);G('shroom',20,21,2);                           // B
-  G('shroom',18,9,2);G('shroom',20,10,2);                                            // nook guards (chest)
-  G('beetle',31,16,3,true);G('wolf',34,18,3);G('shroom',30,20,3);G('shroom',34,15,3);G('wolf',33,20,3); // C: arena
-  G('beetle',29,7,4);G('beetle',31,9,4);G('wolf',30,6,4);                            // D: guards the oak
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-22)<3||Math.hypot(x-30,y-4)<3;
-  scatter(m,r,34,'cutbush',(x,y)=>true,near);
-  scatter(m,r,10,'clay',(x,y)=>true,near);
-  scatter(m,r,9,'ore',(x,y)=>true,near);
-  scatter(m,r,8,'logs',(x,y)=>true,near);
-  scatter(m,r,14,'herb',(x,y)=>true,near,true);
-  addProp(m,'sign',27,6,{text:'The Hollow Oak lies just north. Something ancient sleeps inside... Old Barkfather!'});
-  addProp(m,'sign',5,20,{text:'Hearthmoor is back to the west. Rest at the tavern before you go deeper.'});
-  m.start={x:3*TS,y:22*TS};
-  return m;
-}
 
 // ================= Hollow Oak (dungeon with arena rooms, orb switch, small key) =================
-function buildDungeon(){
-  const m=mk('dungeon','The Hollow Oak',40,34,T.DWALL);
-  m.dark=true;m.gates=[];m.rooms=[];
-  const room=(x1,y1,x2,y2)=>rectT(m,x1,y1,x2-x1+1,y2-y1+1,T.DFLOOR);
-  room(16,27,24,32);   // entrance
-  room(19,24,21,26);   // corridor to hall
-  room(12,15,28,23);   // hall (arena)
-  room(10,18,11,20);   // west corridor
-  room(3,14,9,22);     // west room (key chest)
-  room(29,18,30,20);   // east corridor
-  room(31,14,37,22);   // east room (arena + orb)
-  room(19,10,21,14);   // north corridor (small-key door)
-  room(11,2,29,9);     // boss room
-  for(const[x,y]of[[15,17],[25,17],[15,21],[25,21]])st(m,x,y,T.DWALL);
-  const gate=(id,kind,room_,x,y,w,h)=>{const g={id,kind,room:room_,open:kind==='room',tiles:[]};for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g.tiles.push([i,j]);m.gates.push(g)};
-  gate('hallS','room','hall',19,24,3,1);gate('hallW','room','hall',11,18,1,3);gate('hallE','room','hall',29,18,1,3);
-  gate('eastW','room','east',30,18,1,3);
-  gate('orbW','orb',null,10,18,1,3);
-  gate('key','key',null,19,12,3,1);
-  m.rooms.push({id:'hall',x1:12,y1:15,x2:28,y2:23,gates:['hallS','hallW','hallE'],name:'The hall'});
-  m.rooms.push({id:'east',x1:31,y1:14,x2:37,y2:22,gates:['eastW'],name:'The east chamber'});
-  m.warps.push({x:19*TS,y:32*TS,w:3*TS,h:TS,to:'glade',tx:30*TS,ty:4.5*TS});
-  m.chests.push({id:'dL',x:4*TS+8,y:15*TS+8},{id:'dR',x:37*TS+8,y:21*TS+8});
-  // props
-  for(const[x,y]of[[17,28],[23,28],[17,31],[23,31]])addProp(m,'clay',x,y);
-  for(const[x,y]of[[12,15],[28,15],[12,23],[28,23],[11,2],[29,2],[11,9],[29,9]])addProp(m,'brazier',x,y);
-  addProp(m,'orb',36,15);
-  addProp(m,'sign',22,28,{text:'The Hollow Oak. The doors seal while enemies remain. A small key opens the north door, and a glowing orb can be struck with a weapon or arrow...'});
-  addProp(m,'clay',4,21);addProp(m,'clay',8,15);
-  for(const[x,y]of[[4,19],[8,19],[14,19],[26,19],[36,19],[32,15],[13,4],[27,4],[13,8],[27,8]])addProp(m,'ore',x,y);
-  const c=t=>t*TS+8;
-  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl,elite:!!elite,room:rm});
-  S('beetle',14,17,4,false,'hall');S('beetle',26,17,4,false,'hall');S('beetle',20,19,4,false,'hall');S('shroom',14,22,4,false,'hall');S('shroom',26,22,4,false,'hall');S('wolf',20,22,4,false,'hall');
-  S('shroom',33,15,5,false,'east');S('shroom',35,21,5,false,'east');S('shroom',32,19,5,false,'east');S('beetle',34,17,5,false,'east');S('beetle',36,19,5,false,'east');S('wolf',33,21,5,true,'east');
-  S('wolf',5,16,5);S('wolf',7,20,5);S('wolf',5,21,5);
-  m.spawns.push({type:'boss',x:20*TS+8,y:5*TS,lvl:6});
-  m.start={x:20*TS+8,y:29*TS};
-  return m;
-}
 
 // ================= Amber Hollow (thorn vines gate, then the Spore Warren) =================
-function buildAmber(){
-  const m=mk('amber','Amber Hollow',56,36,T.GRASS),r=seeded(21);
-  m.mist=true;
-  for(let i=0;i<m.t.length;i++)if(r()<.26)m.t[i]=T.LEAF;
-  forest(m,r,.6);
-  const ground=()=>r()<.3?T.LEAF:T.GRASS;
-  const PATHS=[
-    [[0,18],[8,18],[14,17],[22,14],[34,17],[38,20]],
-    [[22,14],[22,26],[26,28]],
-    [[38,20],[44,12],[46,6],[46,3]],
-    [[38,20],[46,26],[52,28]]
-  ];
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.TREE||t===T.ROCK));
-  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.TREE);
-  clear(9,18,4.2);clear(22,14,4.6);clear(23,27,4.2);clear(38,20,5.4);clear(46,6,3.8);clear(51,28,3.2);
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
-  disc(m,10,29,2.4,T.WATER);
-  // wall of thorn vines splits the map in two
-  for(let y=2;y<m.h-2;y++){st(m,31,y,y>=14&&y<=18?T.VINE:T.TREE);st(m,32,y,y>=14&&y<=18?T.VINE:T.TREE)}
-  // shallow ford to the marsh (needs the Wooden Boots)
-  rectT(m,50,27,6,3,T.SHALLOW);
-  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=17&&y<=20)&&!(x>=m.w-2&&y>=27&&y<=29))st(m,x,y,T.TREE)}
-  }
-  rectT(m,0,18,3,2,T.PATH);
-  st(m,45,2,T.OAK);st(m,46,2,T.OAK);
-  m.warps.push({x:0,y:17*TS,w:TS,h:4*TS,to:'glade',tx:41*TS,ty:18.5*TS});
-  m.warps.push({x:45*TS,y:2*TS,w:2*TS,h:TS,to:'spore',tx:22*TS+8,ty:31*TS});
-  m.warps.push({x:54*TS,y:27*TS,w:2*TS,h:3*TS,to:'marsh',tx:4*TS,ty:15*TS});
-  m.chests.push({id:'a1',x:23*TS+8,y:27*TS+8},{id:'a2',x:41*TS+8,y:16*TS+8});
-  for(let y=3;y<m.h-3;y++)for(let x=3;x<m.w-3;x++){
-    const t=gt(m,x,y);
-    if((t===T.GRASS||t===T.LEAF)&&r()<.03)st(m,x,y,T.SHROOM);
-  }
-  const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite});
-  G('bat',8,17,5);G('bat',10,19,5);G('bat',9,16,5);G('shroom',11,18,5);                        // A
-  G('brute',22,14,5);G('shroom',20,12,5);G('shroom',24,16,5);G('bat',21,16,5);               // B
-  G('shroom',21,27,5);G('shroom',25,27,5);G('bat',23,25,5);G('brute',24,29,6);               // C: chest meadow
-  G('brute',37,19,6,true);G('bat',39,21,6);G('bat',36,22,6);G('shroom',40,19,6);G('shroom',38,17,6); // D: arena
-  G('brute',45,6,7);G('bat',44,8,7);G('bat',47,7,7);                                          // E: guards the warren
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-2,y-18)<3||Math.hypot(x-46,y-3)<3||(x>=49&&y>=26&&y<=30);
-  scatter(m,r,34,'cutbush',(x,y)=>true,near);
-  scatter(m,r,10,'clay',(x,y)=>true,near);
-  scatter(m,r,9,'ore',(x,y)=>true,near);
-  scatter(m,r,7,'logs',(x,y)=>true,near);
-  scatter(m,r,14,'herb',(x,y)=>true,near,true);
-  scatter(m,r,26,'glowcap',(x,y)=>true,near,true);
-  addProp(m,'sign',6,19,{text:'Amber Hollow. The air is thick with spores. Beyond the thorns to the east lies the Spore Warren, far to the north.'});
-  addProp(m,'sign',48,5,{text:'The Spore Warren. Mushrooms grow where nothing else can. Crates of stone can be pushed onto pressure plates...'});
-  addProp(m,'sign',49,27,{text:'A flooded ford leads east into the Mistwater Marsh. The water is too deep to wade without proper boots.'});
-  m.start={x:3*TS,y:18.5*TS};
-  return m;
-}
 
 // ================= Spore Warren (dungeon 2: block puzzle, plate gate, key door, Mother Mycelia) =================
-function buildSpore(){
-  const m=mk('spore','The Spore Warren',44,36,T.DWALL);
-  m.dark=true;
-  const room=(x1,y1,x2,y2)=>rectT(m,x1,y1,x2-x1+1,y2-y1+1,T.DFLOOR);
-  room(18,28,26,33);   // entrance
-  room(21,25,23,27);   // corridor
-  room(14,17,30,24);   // hall (arena)
-  room(12,19,13,21);   // west corridor
-  room(3,16,11,24);    // west room: block puzzle
-  room(31,19,32,21);   // east corridor
-  room(33,16,41,24);   // east room (arena + key)
-  room(21,11,23,16);   // north corridor: plate gate, key door
-  room(12,2,32,10);    // boss room
-  for(const[x,y]of[[17,20],[27,20],[7,19],[7,24]])st(m,x,y,T.DWALL);
-  const gate=(id,kind,rm,x,y,w,h,extra)=>{const g=Object.assign({id,kind,room:rm,open:kind==='room',tiles:[]},extra||{});for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g.tiles.push([i,j]);m.gates.push(g)};
-  gate('hallS1','room','hall1',21,25,3,1);gate('hallW1','room','hall1',13,19,1,3);gate('hallE1','room','hall1',31,19,1,3);
-  gate('eastW2','room','east2',32,19,1,3);
-  gate('plateG','plate',null,21,15,3,1,{flag:'plate1'});
-  gate('keyG','key',null,21,12,3,1,{flagKey:'keydoor2'});
-  m.rooms.push({id:'hall1',x1:14,y1:17,x2:30,y2:24,gates:['hallS1','hallW1','hallE1'],name:'The warren hall'});
-  m.rooms.push({id:'east2',x1:33,y1:16,x2:41,y2:24,gates:['eastW2'],name:'The spore chamber'});
-  m.plates.push({tx:9,ty:22,gate:'plateG',flag:'plate1'});
-  m.props.push({k:'plate',tx:9,ty:22,w:1,deco:true});
-  addProp(m,'block',5,19);
-  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'amber',tx:46*TS,ty:4.5*TS});
-  m.chests.push({id:'sL',x:40*TS+8,y:17*TS+8},{id:'sR',x:4*TS+8,y:17*TS+8});
-  for(const[x,y]of[[14,17],[30,17],[14,24],[30,24],[12,2],[32,2],[12,10],[32,10]])addProp(m,'brazier',x,y);
-  for(const[x,y]of[[19,29],[25,29],[19,32],[25,32],[10,24],[40,24]])addProp(m,'clay',x,y);
-  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9]])addProp(m,'ore',x,y);
-  for(const[x,y]of[[16,19],[28,19],[6,17],[10,20],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
-  addProp(m,'sign',20,30,{text:'The Spore Warren. Stone blocks can be pushed (walk into them), but never pulled. If a block gets stuck, leave and come back in.'});
-  const c=t=>t*TS+8;
-  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
-  S('bat',16,19,6,false,'hall1');S('bat',28,22,6,false,'hall1');S('bat',20,22,6,false,'hall1');S('shroom',16,23,6,false,'hall1');S('shroom',28,18,6,false,'hall1');S('brute',22,20,6,false,'hall1');
-  S('brute',35,18,7,false,'east2');S('brute',38,22,7,false,'east2');S('bat',36,20,7,false,'east2');S('bat',34,23,7,false,'east2');S('shroom',39,17,7,true,'east2');
-  m.spawns.push({type:'boss',variant:'mycelia',x:22*TS+8,y:5*TS,lvl:11});
-  m.start={x:22*TS+8,y:31*TS};
-  return m;
-}
 
 // ================= Mistwater Marsh (flooded: the Wooden Boots let you wade) =================
-function buildMarsh(){
-  const m=mk('marsh','Mistwater Marsh',54,34,T.WATER),r=seeded(33);
-  m.mist=true;
-  const ground=()=>r()<.35?T.LEAF:T.GRASS;
-  const isl=(x,y,rad)=>disc(m,x,y,rad,ground);
-  isl(9,15,4);isl(20,9,4.6);isl(21,22,4.6);isl(33,15,5.2);isl(44,8,3.8);isl(44,24,4);
-  const FORDS=[[[0,15],[9,15],[14,12],[20,9]],[[9,15],[14,19],[21,22]],[[20,9],[27,12],[33,15]],[[21,22],[28,19],[33,15]],[[33,15],[40,11],[44,8]],[[33,15],[38,20],[44,24]]];
-  for(const p of FORDS)polyline(m,p,(x,y)=>disc(m,x,y,1.4,T.SHALLOW,t=>t===T.WATER));
-  rectT(m,0,14,4,3,T.SHALLOW);
-  // reeds, rocks and a cliff to the east
-  for(let y=1;y<m.h-1;y++)for(let x=1;x<m.w-1;x++){
-    const t=gt(m,x,y);
-    if((t===T.GRASS||t===T.LEAF)&&r()<.05)st(m,x,y,T.ROCK);
-    if(x>=50&&t===T.WATER)st(m,x,y,T.ROCK);
-  }
-  rectT(m,50,0,4,m.h,T.ROCK);
-  rectT(m,0,0,m.w,1,T.WATER);
-  rectT(m,48,6,2,5,T.GRASS);   // landing before the gorge
-  rectT(m,50,7,3,3,T.GORGE);   // needs the Grapple Hook (turns into a rope bridge)
-  rectT(m,53,7,1,3,T.PATH);
-  st(m,33,10,T.OAK);st(m,34,10,T.OAK);   // Sunken Shrine
-  m.warps.push({x:0,y:14*TS,w:TS,h:3*TS,to:'amber',tx:51*TS,ty:28.5*TS});
-  m.warps.push({x:33*TS,y:10*TS,w:2*TS,h:TS,to:'shrine',tx:22*TS+8,ty:31*TS});
-  m.warps.push({x:53*TS,y:7*TS,w:TS,h:3*TS,to:'rust',tx:3*TS,ty:19.5*TS});
-  m.chests.push({id:'m1',x:44*TS+8,y:7*TS+8},{id:'m2',x:44*TS+8,y:25*TS+8},{id:'m3',x:20*TS+8,y:8*TS+8});
-  const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
-  G('bat',19,8,8);G('bat',22,10,8);G('shroom',20,11,8);G('shroom',18,10,8);
-  G('brute',21,21,8);G('wolf',23,23,8);G('bat',19,24,8);
-  G('brute',32,14,9,true);G('bat',34,16,9);G('bat',31,17,9);G('shroom',35,14,9);G('wolf',33,12,9);
-  G('brute',43,23,9);G('shroom',45,25,9);
-  G('bat',43,8,9);G('bat',46,9,9);
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-9,y-15)<2||Math.hypot(x-33.5,y-10)<3||(x>=47&&y>=5&&y<=11);
-  scatter(m,r,10,'herb',(x,y)=>true,near,true);
-  scatter(m,r,8,'cutbush',(x,y)=>true,near);
-  scatter(m,r,6,'ore',(x,y)=>true,near);
-  scatter(m,r,6,'logs',(x,y)=>true,near);
-  scatter(m,r,12,'glowcap',(x,y)=>true,near,true);
-  addProp(m,'sign',7,14,{text:'Mistwater Marsh. Solid ground is rare here. Follow the shallow fords from island to island.'});
-  addProp(m,'sign',47,9,{text:'A sheer gorge cuts off the east, and the old bridge is long gone. Rustpeak rises beyond it. A grapple hook could span the gap. They say one lies hidden in the Sunken Shrine...'});
-  addProp(m,'sign',31,12,{text:'The Sunken Shrine. Strike the glowing orb with a weapon or arrow to raise the water gate. A small key opens the last door.'});
-  m.start={x:4*TS,y:15*TS};
-  return m;
-}
 // ================= shared layout for the later dungeons (entrance, hall, west/east rooms, north corridor, boss room) =================
-function laterDungeon(id,name,sfx){
-  const m=mk(id,name,44,36,T.DWALL);
-  m.dark=true;
-  const room=(x1,y1,x2,y2)=>rectT(m,x1,y1,x2-x1+1,y2-y1+1,T.DFLOOR);
-  room(18,28,26,33);room(21,25,23,27);room(14,17,30,24);room(12,19,13,21);room(3,16,11,24);
-  room(31,19,32,21);room(33,16,41,24);room(21,11,23,16);room(12,2,32,10);
-  const gate=(gid,kind,rm,x,y,w,h,extra)=>{const g=Object.assign({id:gid,kind,room:rm,open:kind==='room',tiles:[]},extra||{});for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)g.tiles.push([i,j]);m.gates.push(g)};
-  gate('hallS','room','hall'+sfx,21,25,3,1);gate('hallW','room','hall'+sfx,13,19,1,3);gate('hallE','room','hall'+sfx,31,19,1,3);
-  gate('eastW','room','east'+sfx,32,19,1,3);
-  m.rooms.push({id:'hall'+sfx,x1:14,y1:17,x2:30,y2:24,gates:['hallS','hallW','hallE'],name:'The hall'});
-  m.rooms.push({id:'east'+sfx,x1:33,y1:16,x2:41,y2:24,gates:['eastW'],name:'The east chamber'});
-  gate('keyG','key',null,21,12,3,1,{flagKey:'keydoor'+sfx});
-  for(const[x,y]of[[14,17],[30,17],[14,24],[30,24],[12,2],[32,2],[12,10],[32,10]])addProp(m,'brazier',x,y);
-  for(const[x,y]of[[19,29],[25,29],[19,32],[25,32],[10,24],[40,24]])addProp(m,'clay',x,y);
-  m.start={x:22*TS+8,y:31*TS};
-  return m;
-}
 
 // ================= The Sunken Shrine (dungeon 3, Mistwater Marsh: orb switch, small key, The Drowned Matron) =================
-function buildShrine(){
-  const m=laterDungeon('shrine','The Sunken Shrine','3');
-  for(const[x,y]of[[17,20],[27,20],[7,19],[7,22]])st(m,x,y,T.DWALL);
-  m.gates.push({id:'orbG',kind:'orb',flag:'orb3',room:null,open:false,tiles:[[21,15],[22,15],[23,15]]});
-  m.props.push({k:'orb',flag:'orb3',tx:37,ty:16,w:1});st(m,37,16,T.DBLOCK);
-  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'marsh',tx:34*TS,ty:13*TS});
-  m.chests.push({id:'hL',x:4*TS+8,y:17*TS+8},{id:'hR',x:40*TS+8,y:23*TS+8});
-  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9]])addProp(m,'ore',x,y);
-  for(const[x,y]of[[16,19],[28,19],[6,17],[10,21],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28],[8,20],[36,20]])addDeco(m,'glowcap',x,y);
-  addProp(m,'sign',20,30,{text:'The Sunken Shrine. Something old sleeps here, wrapped in rope and iron. Strike the glowing orb in the east chamber, and find the small key in the west.'});
-  const c=t=>t*TS+8;
-  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
-  S('bat',16,19,9,false,'hall3');S('bat',28,22,9,false,'hall3');S('bat',20,22,9,false,'hall3');S('shroom',16,23,9,false,'hall3');S('wolf',28,18,9,false,'hall3');S('brute',22,20,9,false,'hall3');
-  S('brute',35,18,10,false,'east3');S('wolf',38,22,10,false,'east3');S('bat',36,20,10,false,'east3');S('bat',34,23,10,false,'east3');S('brute',39,17,10,true,'east3');
-  S('shroom',5,18,9);S('shroom',9,23,9);
-  m.spawns.push({type:'boss',variant:'drowned',x:22*TS+8,y:5*TS,lvl:14});
-  return m;
-}
 
 // ================= Rustpeak (rocky highlands: wolves, brutes, the Rustpeak Mine) =================
-function buildRust(){
-  const m=mk('rust','Rustpeak',60,40,T.SCREE),r=seeded(47);
-  forest(m,r,.6);
-  for(let i=0;i<m.t.length;i++)if(m.t[i]===T.TREE)m.t[i]=T.CRAG;
-  const ground=()=>T.SCREE;
-  const PATHS=[
-    [[0,19],[8,19],[16,18],[26,20],[36,18],[44,14],[50,8],[50,3]],
-    [[26,20],[28,30],[36,34]],
-    [[36,18],[46,24],[54,28]],
-    [[16,18],[18,8],[24,5]]
-  ];
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.CRAG));
-  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.CRAG);
-  clear(9,19,4.2);clear(26,20,5.2);clear(36,18,5.4);clear(50,8,4.6);clear(36,34,4);clear(54,28,3.6);clear(24,5,3.6);
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
-  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=18&&y<=21))st(m,x,y,T.CRAG)}
-  }
-  rectT(m,0,18,3,4,T.PATH);
-  rectT(m,56,27,4,3,T.PATH);   // dark tunnel to Ghostbark Grove (needs the Miner's Lantern)
-  st(m,49,2,T.OAK);st(m,50,2,T.OAK);
-  m.warps.push({x:0,y:18*TS,w:TS,h:4*TS,to:'marsh',tx:49*TS,ty:8.5*TS});
-  m.warps.push({x:49*TS,y:2*TS,w:2*TS,h:TS,to:'mine',tx:22*TS+8,ty:31*TS});
-  m.warps.push({x:59*TS,y:27*TS,w:TS,h:3*TS,to:'grove',tx:3*TS,ty:20.5*TS,need:'lantern',needText:'A black tunnel. Without a light you cannot go on.'});
-  m.chests.push({id:'r1',x:36*TS+8,y:35*TS+8},{id:'r2',x:55*TS+8,y:29*TS+8},{id:'r3',x:24*TS+8,y:4*TS+8});
-  const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
-  G('wolf',14,18,10);G('wolf',16,20,10);G('beetle',18,17,10);
-  G('brute',26,20,11,true);G('wolf',24,22,11);G('wolf',29,19,11);G('bat',27,17,11);
-  G('bat',24,6,11);G('bat',22,4,11);G('beetle',26,5,11);
-  G('brute',28,30,11);G('beetle',30,31,11);G('beetle',27,32,11);G('brute',36,33,12);G('wolf',34,35,12);
-  G('brute',36,18,12,true);G('wolf',34,16,12);G('wolf',38,20,12);G('bat',37,16,12);G('beetle',35,20,12);
-  G('brute',54,27,12);G('wolf',52,27,12);G('bat',55,26,12);
-  G('brute',49,6,13);G('wolf',52,9,13);G('wolf',47,8,13);
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-19.5)<4||Math.hypot(x-49.5,y-2)<4||(x>=55&&y>=25&&y<=31);
-  scatter(m,r,30,'ore',(x,y)=>true,near);
-  scatter(m,r,14,'clay',(x,y)=>true,near);
-  scatter(m,r,10,'logs',(x,y)=>true,near);
-  scatter(m,r,8,'herb',(x,y)=>true,near,true);
-  addProp(m,'sign',5,20,{text:'Rustpeak. Rust wolves hunt the ridges, and the old mine lies far to the north-east. Keep to the road.'});
-  addProp(m,'sign',56,26,{text:'A black tunnel leads east into Ghostbark Grove. Only a miner\'s lantern can pierce that darkness.'});
-  addProp(m,'sign',47,4,{text:'The Rustpeak Mine. Two stone blocks, two pressure plates. Push, never pull. If a block gets stuck, leave and come back in.'});
-  m.start={x:3*TS,y:19.5*TS};
-  return m;
-}
 
 // ================= The Rustpeak Mine (dungeon 4: two blocks on two plates, small key, The Rust Warden) =================
-function buildMine(){
-  const m=laterDungeon('mine','The Rustpeak Mine','4');
-  for(const[x,y]of[[17,20],[27,20],[7,20],[11,24]])st(m,x,y,T.DWALL);
-  m.gates.push({id:'plateG',kind:'plate',flag:'plate4',room:null,open:false,tiles:[[21,15],[22,15],[23,15]]});
-  for(const[x,y]of[[9,22],[9,18]]){m.plates.push({tx:x,ty:y,gate:'plateG',flag:'plate4'});m.props.push({k:'plate',tx:x,ty:y,w:1,deco:true})}
-  addProp(m,'block',5,19);addProp(m,'block',5,22);
-  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'rust',tx:50*TS,ty:4.5*TS});
-  m.chests.push({id:'xL',x:40*TS+8,y:17*TS+8},{id:'xR',x:4*TS+8,y:17*TS+8});
-  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9],[36,17],[19,19],[25,19]])addProp(m,'ore',x,y);
-  for(const[x,y]of[[16,19],[28,19],[10,18],[34,17],[38,23],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
-  addProp(m,'sign',20,30,{text:'The Rustpeak Mine. Two blocks, two plates. Walk into a block to push it, but it can never be pulled back. Leave and re-enter if one gets stuck.'});
-  const c=t=>t*TS+8;
-  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
-  S('wolf',16,19,11,false,'hall4');S('wolf',28,22,11,false,'hall4');S('beetle',20,22,11,false,'hall4');S('beetle',16,23,11,false,'hall4');S('bat',28,18,11,false,'hall4');S('brute',22,20,11,false,'hall4');
-  S('brute',35,18,12,false,'east4');S('brute',38,22,12,false,'east4');S('wolf',36,20,12,false,'east4');S('wolf',34,23,12,false,'east4');S('beetle',39,17,12,true,'east4');
-  S('beetle',7,17,11);S('bat',10,23,11);
-  m.spawns.push({type:'boss',variant:'warden',x:22*TS+8,y:5*TS,lvl:17});
-  return m;
-}
 // ================= Ghostbark Grove (night forest: skeletons, ghosts, graves, the Ghostbark Crypt) =================
-function buildGrove(){
-  const m=mk('grove','Ghostbark Grove',56,40,T.MOSS),r=seeded(59);
-  m.mist=true;m.night=true;
-  forest(m,r,.6);
-  for(let i=0;i<m.t.length;i++)if(m.t[i]===T.TREE)m.t[i]=T.GTREE;
-  const ground=()=>T.MOSS;
-  const PATHS=[
-    [[0,20],[8,20],[16,18],[24,20],[32,16],[40,12],[44,6],[44,3]],
-    [[24,20],[26,30],[34,34]],
-    [[32,16],[42,22],[50,26]],
-    [[16,18],[14,8],[20,5]]
-  ];
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.GTREE));
-  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.GTREE);
-  clear(8,20,4.2);clear(24,20,5);clear(32,16,5);clear(44,6,4.4);clear(34,34,4);clear(50,26,3.6);clear(20,5,3.6);
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
-  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=19&&y<=22))st(m,x,y,T.GTREE)}
-  }
-  rectT(m,0,19,3,4,T.PATH);
-  rectT(m,52,25,4,3,T.PATH);   // sealed root-gate to the Heart of Spicewood (needs the Heartseed)
-  st(m,43,2,T.OAK);st(m,44,2,T.OAK);
-  m.warps.push({x:0,y:19*TS,w:TS,h:4*TS,to:'rust',tx:56*TS,ty:28.5*TS});
-  m.warps.push({x:43*TS,y:2*TS,w:2*TS,h:TS,to:'crypt',tx:22*TS+8,ty:31*TS});
-  m.warps.push({x:55*TS,y:25*TS,w:TS,h:3*TS,to:'heart',tx:3*TS,ty:18.5*TS,need:'heartseed',needText:'A great sealed root-gate. It hungers for a Heartseed.'});
-  m.chests.push({id:'p1',x:34*TS+8,y:35*TS+8},{id:'p2',x:51*TS+8,y:27*TS+8},{id:'p3',x:20*TS+8,y:4*TS+8});
-  const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
-  G('ghost',12,19,13);G('skeleton',14,21,13);G('skeleton',12,22,13);
-  G('skeleton',24,20,14,true);G('skeleton',22,22,14);G('ghost',26,18,14);G('ghost',27,22,14);
-  G('ghost',20,6,14);G('ghost',22,4,14);G('skeleton',18,5,14);
-  G('skeleton',26,30,14);G('skeleton',34,33,15);G('ghost',36,35,15);G('skeleton',32,35,15);
-  G('skeleton',32,16,15,true);G('ghost',30,14,15);G('ghost',34,18,15);G('shroom',31,18,15);
-  G('skeleton',50,26,15);G('ghost',52,25,15);G('ghost',49,28,15);
-  G('skeleton',44,6,16);G('skeleton',42,8,16);G('ghost',46,5,16);G('ghost',45,8,16);
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-20.5)<4||Math.hypot(x-43.5,y-2)<4||(x>=51&&y>=23&&y<=29&&x!==51);
-  scatter(m,r,34,'grave',(x,y)=>true,near);
-  scatter(m,r,10,'lantern',(x,y)=>true,near);
-  scatter(m,r,8,'ore',(x,y)=>true,near);
-  scatter(m,r,26,'glowcap',(x,y)=>true,near,true);
-  scatter(m,r,8,'herb',(x,y)=>true,near,true);
-  addProp(m,'sign',4,21,{text:'Ghostbark Grove. The trees here are pale and the dead do not rest. The Ghostbark Crypt lies far to the north-east.'});
-  addProp(m,'sign',52,23,{text:'A gate of living roots seals the east. Beyond it beats the Heart of Spicewood. Only a Heartseed can open it.'});
-  addProp(m,'sign',41,4,{text:'The Ghostbark Crypt. A block, a plate, a glowing orb and a small key. The Hollow King waits below.'});
-  m.start={x:3*TS,y:20.5*TS};
-  return m;
-}
 
 // ================= The Ghostbark Crypt (dungeon 5: block and plate, orb, small key, The Hollow King) =================
-function buildCrypt(){
-  const m=laterDungeon('crypt','The Ghostbark Crypt','5');
-  for(const[x,y]of[[17,20],[27,20],[7,20],[11,24]])st(m,x,y,T.DWALL);
-  m.gates.push({id:'plateG',kind:'plate',flag:'plate5',room:null,open:false,tiles:[[21,15],[22,15],[23,15]]});
-  m.gates.push({id:'orbG',kind:'orb',flag:'orb5',room:null,open:false,tiles:[[21,13],[22,13],[23,13]]});
-  m.plates.push({tx:9,ty:22,gate:'plateG',flag:'plate5'});m.props.push({k:'plate',tx:9,ty:22,w:1,deco:true});
-  addProp(m,'block',5,19);
-  m.props.push({k:'orb',flag:'orb5',tx:37,ty:16,w:1});st(m,37,16,T.DBLOCK);
-  m.warps.push({x:21*TS,y:33*TS,w:3*TS,h:TS,to:'grove',tx:44*TS,ty:4.5*TS});
-  m.chests.push({id:'kL',x:40*TS+8,y:23*TS+8},{id:'kR',x:4*TS+8,y:17*TS+8});
-  for(const[x,y]of[[4,23],[11,17],[35,23],[39,19],[16,22],[28,22],[14,4],[30,4],[14,9],[30,9]])addProp(m,'grave',x,y);
-  for(const[x,y]of[[16,19],[28,19],[10,18],[34,17],[38,21],[20,5],[24,5],[16,28],[28,28]])addDeco(m,'glowcap',x,y);
-  addProp(m,'sign',20,30,{text:'The Ghostbark Crypt. Push the block onto the plate, strike the orb, and use the small key. The Hollow King does not forgive trespassers.'});
-  const c=t=>t*TS+8;
-  const S=(type,x,y,lvl,elite,rm)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+2,elite:!!elite,room:rm});
-  S('skeleton',16,19,14,false,'hall5');S('skeleton',28,22,14,false,'hall5');S('ghost',20,22,14,false,'hall5');S('ghost',16,23,14,false,'hall5');S('skeleton',28,18,14,false,'hall5');S('skeleton',22,20,14,true,'hall5');
-  S('skeleton',35,18,15,false,'east5');S('skeleton',38,22,15,false,'east5');S('ghost',36,20,15,false,'east5');S('ghost',34,23,15,false,'east5');S('skeleton',39,17,15,true,'east5');
-  S('ghost',7,17,14);S('skeleton',10,23,14);
-  m.spawns.push({type:'boss',variant:'king',x:22*TS+8,y:5*TS,lvl:20});
-  return m;
-}
 // ================= Heart of Spicewood (finale: the ancient tree and its guardians) =================
-function buildHeart(){
-  const m=mk('heart','Heart of Spicewood',52,38,T.GRASS),r=seeded(83);
-  m.mist=true;
-  for(let i=0;i<m.t.length;i++)if(r()<.45)m.t[i]=T.LEAF;
-  forest(m,r,.58);
-  const ground=()=>r()<.5?T.LEAF:T.GRASS;
-  const PATHS=[
-    [[0,18],[10,18],[18,22],[26,20],[26,14],[26,9]],
-    [[18,22],[12,30],[8,32]],
-    [[26,20],[38,24],[44,28]],
-    [[10,18],[10,8],[14,5]]
-  ];
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,2.6,ground,t=>t===T.TREE));
-  const clear=(x,y,rad)=>disc(m,x,y,rad,ground,t=>t===T.TREE);
-  clear(5,18,4);clear(18,22,4.4);clear(26,19,4.4);clear(26,12,4);clear(8,32,3.6);clear(44,28,3.6);clear(14,5,3.6);
-  clear(26,7,8);   // the Heartwood's arena
-  for(const p of PATHS)polyline(m,p,(x,y)=>disc(m,x,y,1.2,T.PATH));
-  disc(m,26,8,1.6,T.PATH);
-  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){
-    if(x<2||y<2||x>=m.w-2||y>=m.h-2){if(!(x<2&&y>=17&&y<=20))st(m,x,y,T.TREE)}
-  }
-  rectT(m,0,17,3,4,T.PATH);
-  m.warps.push({x:0,y:17*TS,w:TS,h:4*TS,to:'grove',tx:52*TS,ty:26.5*TS});
-  m.chests.push({id:'q1',x:8*TS+8,y:33*TS+8},{id:'q2',x:45*TS+8,y:29*TS+8},{id:'q3',x:14*TS+8,y:4*TS+8});
-  const c=t=>t*TS+8;
-  const G=(type,x,y,lvl,elite)=>m.spawns.push({type,x:c(x),y:c(y),lvl:lvl+3,elite:!!elite});
-  G('skeleton',9,18,15);G('ghost',12,17,15);G('skeleton',11,20,15);
-  G('brute',18,22,16,true);G('wolf',16,24,16);G('wolf',20,20,16);G('ghost',19,24,16);
-  G('skeleton',26,19,16,true);G('ghost',24,21,16);G('ghost',28,18,16);G('bat',26,22,16);
-  G('brute',25,13,17);G('brute',28,12,17);G('wolf',24,15,17);
-  G('skeleton',9,31,16);G('brute',7,33,16);G('ghost',10,33,16);
-  G('skeleton',43,28,16);G('brute',45,27,16,true);G('ghost',44,30,16);
-  G('ghost',13,6,16);G('skeleton',15,4,16);G('shroom',12,5,16);
-  G('ghost',20,9,17);G('ghost',32,9,17);
-  const near=(x,y)=>m.spawns.some(sp=>Math.hypot(sp.x/TS-x,sp.y/TS-y)<1.6)||Math.hypot(x-3,y-18.5)<4||Math.hypot(x-26,y-8)<9;
-  scatter(m,r,14,'ore',(x,y)=>true,near);
-  scatter(m,r,10,'logs',(x,y)=>true,near);
-  scatter(m,r,12,'herb',(x,y)=>true,near,true);
-  scatter(m,r,22,'glowcap',(x,y)=>true,near,true);
-  scatter(m,r,10,'cutbush',(x,y)=>true,near);
-  for(const[x,y]of[[19,3],[33,3],[19,12],[33,12],[26,2]])addProp(m,'brazier',x,y);
-  addProp(m,'sign',5,19,{text:'The Heart of Spicewood. The old tree stirs and its blight is spreading. End it, and the forest will breathe again.'});
-  m.spawns.push({type:'boss',variant:'heartwood',x:26*TS+8,y:5*TS,lvl:24});
-  m.start={x:3*TS,y:18.5*TS};
+// ================= Hidden grottos: small treasure caves in early zones, opened with gate items found later =================
+const GROT={
+  village:{name:'Root Cellar',lvl:3,foes:['beetle','shroom'],hint:'Old roots hold this cellar together. Someone hid a treasure here long ago.'},
+  glade:{name:'Dewdrop Grotto',lvl:7,foes:['wolf','shroom'],hint:'Water drips from the ceiling. The Wooden Boots carried you through the pond to reach this place.'},
+  amber:{name:'Hookshot Hollow',lvl:11,foes:['bat','brute'],hint:'A cave above a deep gorge. Only a Grapple Hook could have brought you here.'},
+  marsh:{name:'Sunless Burrow',lvl:15,foes:['bat','skeleton'],hint:'A burrow so dark that even the bats lost their way. Your lantern shows the path.'},
+  rust:{name:'Root-Bound Vault',lvl:19,foes:['brute','ghost'],hint:'The roots parted for the Heartseed. A vault of the old miners lies beyond.'}
+};
+function buildGrotto(zone){
+  const d=GROT[zone],ret=GRET[zone]||(ensureZone(zone),GRET[zone])||{tx:0,ty:0},m=mk('grotto_'+zone,d.name,24,16,T.DWALL);m.zone=zone;
+  m.dark=true;
+  rectT(m,4,3,16,8,T.DFLOOR);rectT(m,11,11,2,4,T.DFLOOR);
+  for(const[x,y]of[[4,3],[19,3],[4,10],[19,10]])addProp(m,'brazier',x,y);
+  for(const[x,y]of[[7,5],[16,5],[7,9],[16,9]])addProp(m,'clay',x,y);
+  addProp(m,'sign',10,10,{text:d.hint});
+  m.chests.push({id:'gr_'+zone,x:12*TS,y:4*TS+8});
+  m.warps.push({x:11*TS,y:14*TS,w:2*TS,h:TS,to:'world',tx:ret.tx,ty:ret.ty});
+  const c=t=>t*TS+8,F=d.foes;
+  m.spawns.push({type:F[0],x:c(8),y:c(7),lvl:d.lvl,elite:false},{type:F[0],x:c(15),y:c(7),lvl:d.lvl,elite:false},{type:F[1],x:c(11),y:c(8),lvl:d.lvl,elite:true});
+  m.start={x:11.5*TS,y:13*TS};
   return m;
 }
-const MAPS={village:buildVillage,glade:buildGlade,dungeon:buildDungeon,amber:buildAmber,spore:buildSpore,marsh:buildMarsh,shrine:buildShrine,rust:buildRust,mine:buildMine,grove:buildGrove,crypt:buildCrypt,heart:buildHeart};
+const MAPS={
+  grotto_village:()=>buildGrotto('village'),grotto_glade:()=>buildGrotto('glade'),grotto_amber:()=>buildGrotto('amber'),grotto_marsh:()=>buildGrotto('marsh'),grotto_rust:()=>buildGrotto('rust')};

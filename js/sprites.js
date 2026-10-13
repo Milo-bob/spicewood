@@ -204,6 +204,144 @@ const Spr=(()=>{
     'gggggg',
     'g.gg.g',
     '.g..g.']),{g:'rgba(190,232,224,.9)',e:'#102020',m:'#102020'});
+  // The Harvest King: crowned scarecrow in a green cloak
+  enemy.boss7=make(sym([
+    '..l.l.l.',
+    '..llllll',
+    '..wwwwww',
+    '.wwwwwww',
+    '.wweewww',
+    '.wwwwwww',
+    '..wddddd',
+    '.pppwwww',
+    'pppwbbbb',
+    'pppwbbbb',
+    'pppppbbb',
+    'pppppppb',
+    'ppppppp.',
+    'pppp.ppp',
+    'ppp..ppp',
+    '.pp..ppp']),{l:'#f0c040',w:'#d8b860',e:'#401000',d:'#8a6a20',p:'#6a8a2a',b:'#c8a850'},2);
+  // The Cinder Colossus: furnace golem
+  enemy.boss8=make(sym([
+    'lll...dd',
+    '.lldddss',
+    '..ddssss',
+    '..dsseww',
+    '..dsssss',
+    '..dsmmmm',
+    'dddddddd',
+    'dsssrrss',
+    'dsssrrss',
+    'dsssssss',
+    '.dssssss',
+    '.dddddd.',
+    '.dss..ss',
+    '.dss..ss',
+    '.ddd..dd']),{s:'#4a3a3a',d:'#1a1212',r:'#ff5a1a',l:'#ffb040',e:'#ffe040',w:'#7a6060',m:'#000000'},2);
+  enemy.boss9=make(sym([
+    '...rrrrr',
+    '..rrwrrr',
+    '.rrrrrrr',
+    '.rrddddd',
+    '.rdsssss',
+    '.rdsessw',
+    '.rdssmmm',
+    '.rrdssdd',
+    '..rrrrrr',
+    '.rrwrrrr',
+    'rrrrrrrr',
+    'rrdrrrdr',
+    'rd.rrd.r',
+    'd.lrrl.d',
+    '..l.l.l.']),{r:'#6a3ac8',w:'#fff0a0',d:'#2a1a60',s:'#a898e8',e:'#ffe040',m:'#1a1040',l:'#8a78d8',g:'rgba(190,170,255,.9)'},2);
+  enemy.boss10=make(sym([
+    '..gg..gg',
+    '.ggggggg',
+    'gggggggg',
+    '.gggbbbb',
+    '..bbbbbb',
+    '..bdwebb',
+    '..bbbbbb',
+    '..bbdmmm',
+    '..bbbdmm',
+    '...bbbbb',
+    '..lbbbbb',
+    '.lbbbbbb',
+    'lb.bbbbb',
+    'b..bbbbb',
+    '...bb.bb',
+    '...b..b.']),{g:'#ff5a1a',b:'#3a2020',d:'#1a0e0e',l:'#6a3030',e:'#ffe040',w:'#ffd890',m:'#000000'},2);
+  enemy.boss11=make(sym([
+    '..l.l.l.',
+    '..llllll',
+    '..wwwwww',
+    '.wwwwwww',
+    '.wweewww',
+    '.wwwwwww',
+    '..wddddd',
+    '.pppwwww',
+    'pppwbbbb',
+    'pppwbbbb',
+    'pppppbbb',
+    'pppppppb',
+    'ppppppp.',
+    'pppp.ppp',
+    'ppp..ppp',
+    '.pp..ppp']),{l:'#bfe8ff',w:'#e8f4fc',e:'#40a0ff',d:'#6a8aa8',p:'#2a5a9a',b:'#a8c8e0'},2);
+  enemy.boss12=make(sym(B2ROWS),{r:'#40c8c8',w:'#fff0ff',d:'#1a4a5a',s:'#f0a0e0',e:'#202040',m:'#401a40',l:'#a0e8f0'},2);
+  enemy.boss13=make(sym([
+    'lll...dd',
+    '.lldddss',
+    '..ddssss',
+    '..dsseww',
+    '..dsssss',
+    '..dsmmmm',
+    'dddddddd',
+    'dsssrrss',
+    'dsssrrss',
+    'dsssssss',
+    '.dssssss',
+    '.dddddd.',
+    '.dss..ss',
+    '.dss..ss',
+    '.ddd..dd']),{s:'#d8b070',d:'#8a6030',r:'#c8502a',l:'#f0d890',e:'#40e0ff',w:'#fff0c0',m:'#2a1808'},2);
+  enemy.boss14=make(sym([
+    '..gggooo',
+    '.ggyggog',
+    'gggggygg',
+    'goggggog',
+    '.gbbbbbb',
+    '..bdeebb',
+    '..bbbbbb',
+    '..bdmmmm',
+    '..bbbdmm',
+    '...bbbbb',
+    '..lbbbbb',
+    '.lbbbbbb',
+    'lb.bbbbb',
+    'b..bbbbb',
+    'l..bb.bb',
+    '...b..b.']),{g:'#2a6a2a',o:'#a02a3a',y:'#e8b030',b:'#1a3a1a',d:'#0e2a10',e:'#ff4040',w:'#fff0f0',m:'#0a1a0a',l:'#4a8a3a',r:'#c03030',s:'#3a5a2a'},2);
+  enemy.boss15=make(sym(B2ROWS),{r:'#c8402a',w:'#ffe8c0',d:'#5a1a10',s:'#e8b878',e:'#202020',m:'#2a0a0a',l:'#a86a3a'},2);
+  // Elder Maren, the Tithe-Binder: a red-robed elder in a crown of gold, rooted in green
+  enemy.boss16=make(sym([
+    '....llll',
+    '...wwwww',
+    '..wwwwww',
+    '..wsssss',
+    '..wsesss',
+    '..wsssmm',
+    '..rddddd',
+    '.rrrlrrr',
+    'rrrrlrrr',
+    'rrrrrrrr',
+    'grrrrrrr',
+    'gdrrrrrr',
+    'ggdrrrrr',
+    'g.ddrrrr',
+    'gg.ddddd',
+    '.g..gggg']),{w:'#d8d8e0',s:'#e8c8a8',e:'#c01818',m:'#6a2a2a',r:'#7a1a2a',d:'#3a0a14',l:'#e8c040',g:'#3a6a2a'},2);
   enemy.boss=make(sym([
     '..gg..gg',
     '.ggggggg',
@@ -222,6 +360,9 @@ const Spr=(()=>{
     '...bb.bb',
     '...b..b.']),{g:'#d8741e',b:'#6a4424',d:'#3a2412',l:'#8a5c30',e:'#1b1b1b',w:'#ffffff',m:'#140a06'},2);
   for(const k in enemy)enemy[k]=outline(enemy[k]);
+  enemy.frostwolf=tint(enemy.wolf,'rgba(140,200,255,.55)');enemy.sandbeetle=tint(enemy.beetle,'rgba(240,200,100,.5)');enemy.thornbrute=tint(enemy.brute,'rgba(40,160,60,.45)');
+  enemy.stormbat=tint(enemy.bat,'rgba(180,160,255,.5)');enemy.magmabrute=tint(enemy.brute,'rgba(255,80,30,.55)');enemy.crystalghost=tint(enemy.ghost,'rgba(120,240,230,.5)');enemy.frostskel=tint(enemy.skeleton,'rgba(180,230,255,.5)');
+
   for(const k in enemy){elite[k]=tint(enemy[k],'rgba(255,200,40,.38)');flash[k]=tint(enemy[k],'#ffffff')}
 
   // ----- tiles -----
@@ -278,6 +419,14 @@ const Spr=(()=>{
     multi(30,(g,r)=>{R(g,'#8a7a66',0,0,16,16);speck(g,r,['#9c8c76','#76664f','#a89880'],16);R(g,'rgba(0,0,0,.25)',1,12,14,3);R(g,'#4e463c',1,2,14,12);R(g,'#6e665a',1,1,13,11);R(g,'#8e867a',3,2,5,2);R(g,'#a0522d',9,5,3,2);R(g,'#3a342c',2,11,12,2)});
     multi(31,(g,r)=>{R(g,'#2e3a3a',0,0,16,16);speck(g,r,['#3a4848','#243030','#46585a','#566a6a'],24);if(r()<.3)R(g,'#7a9a8a',Math.floor(r()*13),Math.floor(r()*14),2,1)});
     multi(32,(g,r,v)=>{R(g,'#2e3a3a',0,0,16,16);speck(g,r,['#3a4848','#243030'],10);R(g,'rgba(0,0,0,.3)',2,12,12,3);R(g,'#1a1a1e',6,7,4,8);R(g,'#8a9a98',1,1,14,9);R(g,'#b8c8c4',3,1,8,3);R(g,'#5a6a68',1,8,14,2);for(let i=0;i<3;i++)R(g,'#d8e8e4',Math.floor(r()*12)+1,Math.floor(r()*6)+1,2,1)});
+    multi(33,(g,r)=>{R(g,'#e6edf5',0,0,16,16);speck(g,r,['#cfdbe9','#f7fbff','#b9c9dc','#d9e4f0'],26);if(r()<.2)R(g,'#a8b8cc',Math.floor(r()*12),Math.floor(r()*14),3,1)});
+    multi(34,(g,r)=>{R(g,'#d9b975',0,0,16,16);speck(g,r,['#c9a55c','#e8cd8a','#b89449','#d2b068'],26);if(r()<.25)R(g,'#a8864a',Math.floor(r()*12),Math.floor(r()*14),4,1)});
+    multi(35,(g,r,v)=>{R(g,'#102018',0,0,16,16);R(g,'#4a3020',6,12,4,4);R(g,'#1c4a30',1,4,14,9);R(g,'#2a6a44',2,2,12,7);R(g,'#1c4a30',3,0,10,4);R(g,'#eef4fa',2,2,5,2);R(g,'#eef4fa',9,5,4,2);R(g,'#eef4fa',4,0,6,1);R(g,'#c8d8e8',1,12,14,1)});
+    multi(36,(g,r,v)=>{R(g,'#d9b975',0,0,16,16);speck(g,r,['#c9a55c','#e8cd8a'],14);R(g,'rgba(0,0,0,.2)',3,13,10,2);const x=5+(v%3);R(g,'#2c6a30',x,3,4,11);R(g,'#4a9a48',x,3,2,11);R(g,'#2c6a30',x-3,6,3,2);R(g,'#2c6a30',x-3,4,2,3);R(g,'#2c6a30',x+4,8,3,2);R(g,'#2c6a30',x+5,5,2,4);R(g,'#e8c8d0',x+1,3,1,1)});
+    multi(37,(g,r,v)=>{R(g,'#3a3446',0,0,16,16);speck(g,r,['#4a4458','#2a2636'],14);R(g,'rgba(0,0,0,.3)',1,13,14,2);const cs=[['#7ad8e8','#4aa0b8'],['#c8a0ff','#8a60c8'],['#ff9ad0','#c0608a'],['#a0f0c0','#50b080']],c=cs[v%4];R(g,c[0],6,2,4,11);R(g,'#ffffff',7,3,1,6);R(g,c[1],9,4,1,9);R(g,c[0],2,6,3,7);R(g,c[1],4,7,1,6);R(g,c[0],11,7,3,6);R(g,c[1],13,8,1,5)});
+    multi(38,(g,r,v)=>{R(g,'#0a1c0e',0,0,16,16);R(g,'#3a2412',6,12,4,4);R(g,'#16401c',0,3,16,10);R(g,'#1e5a26',0,0,16,9);for(let i=0;i<6;i++)R(g,'#2e7a34',Math.floor(r()*12),Math.floor(r()*7),3,2);for(let i=0;i<3;i++)R(g,'#0e2e14',Math.floor(r()*13),Math.floor(r()*8)+1,3,2);if(v%2)R(g,'#e8683a',Math.floor(r()*12)+1,Math.floor(r()*7)+1,2,2);R(g,'#0a1c0e',0,12,16,1);R(g,'#14401a',1,10,14,2)});
+    multi(39,(g,r)=>{R(g,'#3a3232',0,0,16,16);speck(g,r,['#4a3e3e','#2a2222','#564848','#332a2a'],26);if(r()<.18)R(g,'#c8501e',Math.floor(r()*14),Math.floor(r()*14),1,1);if(r()<.15)R(g,'#5a3a2a',Math.floor(r()*12),Math.floor(r()*14),3,1)});
+    multi(40,(g,r)=>{R(g,'#16101a',0,0,16,16);speck(g,r,['#241a2c','#0e0a12'],12);R(g,'rgba(0,0,0,.3)',1,13,14,2);R(g,'#2e2438',1,2,14,11);R(g,'#3c2e4a',2,2,10,4);R(g,'#16101a',1,12,14,1);for(let i=0;i<3;i++){const x=Math.floor(r()*11)+2,y=Math.floor(r()*8)+3;R(g,'#c0401a',x,y,1,3);R(g,'#ff8a2a',x,y,1,1)}});
     multi(T.OAK,(g,r)=>{R(g,'#5a3a1c',0,0,16,16);R(g,'#3e2810',0,0,2,16);R(g,'#3e2810',14,0,2,16);R(g,'#120a06',2,1,12,15);R(g,'#1e120a',4,3,8,13);R(g,'#2a1a0e',6,6,4,10);R(g,'#7a5a2c',1,0,14,1)});
   }
   build();
