@@ -232,51 +232,9 @@ function trialChests(){
 // ---------- drawing ----------
 function drawSpotProp(p,x,y,t,R_){
   switch(p.k){
-    case'rune':{
-      const done=flags.trials&&flags.trials[p.id],cxp=x+8,cyp=y+8,pu=.5+.5*Math.sin(t*3);
-      cx.save();
-      if(!done){glow(cxp,cyp,34+4*pu,'255,210,100',.42)}
-      cx.strokeStyle=done?'#6a6a60':'#ffd070';cx.lineWidth=1.5;
-      for(const rr of[10,16]){cx.beginPath();cx.ellipse(cxp,cyp,rr,rr*.62,0,0,TAU);cx.stroke()}
-      cx.fillStyle=done?'#6a6a60':'#ffe9a0';
-      for(let i=0;i<6;i++){const a=i*TAU/6+(done?0:t*.5);cx.fillRect(Math.round(cxp+Math.cos(a)*13-1),Math.round(cyp+Math.sin(a)*8-1),3,3)}
-      if(!done){cx.fillStyle=`rgba(255,230,150,${.5+.4*pu})`;cx.fillRect(cxp-1,cyp-6,3,12);cx.fillRect(cxp-6,cyp-1,12,3)}
-      cx.restore();break}
-    case'pillar':shadow(x+8,y+15,6);R_('#2a2620',3,-6,10,22);R_('#8a867a',4,-5,8,20);R_('#b8b0a0',4,-5,3,20);R_('#6a665c',9,-5,3,20);R_('#4a463e',2,-7,12,3);R_('#ffd070',6,-2,4,2);break;
+    case'rune':drawRune(p,x,y,t,R_);break;
+    case'pillar':drawPillar(p,x,y,t,R_);break;
     case'hedge':shadow(x+8,y+14,7);R_('#1c3a14',1,3,14,12);R_('#2f5a20',1,2,14,11);R_('#4a8a30',3,3,5,3);R_('#6aae44',9,6,4,3);R_('#d05a7a',5,8,2,2);R_('#e0c050',11,4,2,2);if(p.hint){cx.globalAlpha=.5+.4*Math.sin(t*4);R_('#fff0a0',7,-2,2,2);cx.globalAlpha=1}break;
     case'landmark':drawLandmark(p.lm,x,y,t,R_);break;
-  }
-}
-function drawLandmark(k,x,y,t,R_){
-  const B=(c,dx,dy,w,h)=>R_(c,dx,dy,w,h);
-  shadow(x+8,y+16,18);
-  switch(k){
-    case'windmill':{
-      B('#000',-5,-34,26,50);B('#d8c8a0',-4,-33,24,48);B('#b89868',12,-33,8,48);B('#8a6a40',-4,-8,24,2);B('#6a4a28',5,4,6,12);
-      B('#a83a2a',-6,-42,28,10);B('#c8503a',-6,-42,28,3);
-      cx.save();cx.translate(x+8,y-30);cx.rotate(t*.6);cx.fillStyle='#4a3018';
-      for(let i=0;i<4;i++){cx.save();cx.rotate(i*Math.PI/2);cx.fillRect(-1,-24,3,24);cx.fillStyle='#e8d8b0';cx.fillRect(2,-24,8,13);cx.fillStyle='#4a3018';cx.restore()}
-      cx.fillRect(-2,-2,5,5);cx.restore();break}
-    case'obelisk':B('#000',0,-52,16,68);B('#e0c488',1,-51,14,66);B('#b89858',9,-51,6,66);B('#e0c488',3,-56,10,5);B('#ffd870',6,-60,4,5);for(let i=0;i<5;i++)B('#8a6a30',4,-44+i*10,8,1);break;
-    case'stones':
-      for(const[dx,h]of[[-14,26],[-4,34],[8,28],[20,22]]){B('#000',dx-1,-h,11,h+16);B('#9a9a92',dx,-h+1,9,h+14);B('#bcbcb2',dx,-h+1,3,h+14);B('#6a6a62',dx+6,-h+1,3,h+14)}
-      B('#8a8a82',-14,-32,36,4);break;
-    case'icearch':
-      B('#000',-14,-34,12,50);B('#000',18,-34,12,50);B('#000',-14,-40,44,12);
-      B('#bfe4ff',-13,-33,10,48);B('#bfe4ff',19,-33,10,48);B('#d8f0ff',-13,-39,42,10);B('#8ac0e8',-6,-33,3,48);B('#8ac0e8',24,-33,3,48);B('#fff',-8,-37,8,2);
-      cx.globalAlpha=.4+.3*Math.sin(t*2);B('#ffffff',2,-22,12,30);cx.globalAlpha=1;break;
-    case'crystals':
-      for(const[dx,h,c]of[[-8,34,'#c8a0ff'],[2,48,'#a0d8ff'],[12,30,'#ff9ae0']]){B('#000',dx-1,-h,11,h+16);B(c,dx,-h+1,9,h+14);B('#fff',dx+2,-h+3,2,h*.6);B('#00000033',dx+6,-h+1,3,h+14)}
-      glow(x+8,y-14,30,'200,170,255',.3);break;
-    case'spike':B('#000',-4,-48,24,64);B('#2a2428',-3,-47,22,62);B('#3a343a',-3,-47,8,62);B('#c84a1a',2,-30,2,22);B('#ff8a30',9,-14,2,14);glow(x+8,y-4,24,'255,120,40',.28);break;
-    case'chimney':B('#000',-4,-44,24,60);B('#5a3a2a',-3,-43,22,58);B('#7a5a42',-3,-43,8,58);B('#2a1a12',-5,-48,26,6);cx.globalAlpha=.4;for(let i=0;i<3;i++)B('#aaa',3+Math.sin(t+i)*3,-56-i*8-(t*10)%8,8,6);cx.globalAlpha=1;break;
-    case'ruintower':B('#000',-6,-40,28,56);B('#8a867a',-5,-39,26,54);B('#a8a498',-5,-39,9,54);B('#5a564c',5,-39,3,54);B('#000',0,-30,8,10);B('#2a2620',1,-29,6,8);B('#000',0,-44,8,6);B('#000',12,-46,8,8);B('#4a8a30',-5,-20,8,3);break;
-    case'oakgiant':B('#000',-10,-46,36,62);B('#4a2c14',0,-26,16,42);B('#6a4424',2,-26,6,42);B('#c8641e',-10,-48,36,30);B('#e0902a',-6,-52,28,12);B('#a04a14',2,-36,22,10);B('#2a1a0a',5,-6,6,12);break;
-    case'shroomtower':B('#000',-6,-44,28,60);B('#d8c8b0',2,-22,12,38);B('#a84a8a',-8,-44,32,24);B('#d870b8',-6,-46,28,10);B('#fff',0,-40,4,4);B('#fff',12,-34,4,4);B('#fff',20,-42,3,3);break;
-    case'statue':B('#000',0,-44,16,60);B('#5a8a9a',1,-43,14,58);B('#7ab0c0',1,-43,5,58);B('#2a5a3a',1,-8,14,10);B('#3a7a4a',3,-30,4,12);B('#2a4a6a',-6,10,28,6);break;
-    case'gallows':B('#000',-6,-44,34,60);B('#4a3a2a',-5,-43,4,58);B('#4a3a2a',-5,-43,30,4);B('#6a5a42',20,-43,3,20);B('#8a8a8a',20,-23,3,3);B('#e8e0c8',18,-20,7,10);break;
-    case'rootarch':B('#000',-14,-40,44,56);B('#6a4424',-12,-39,10,54);B('#6a4424',18,-39,10,54);B('#6a4424',-10,-42,38,10);B('#d8a030',4,-30,8,12);glow(x+8,y-24,26,'255,210,100',.35);break;
-    case'vinetree':B('#000',-10,-46,36,62);B('#3a2a14',0,-26,16,42);B('#2a6a2a',-10,-48,36,28);B('#4aa04a',-6,-52,28,12);for(let i=0;i<5;i++)B('#2a8a3a',-8+i*7,-22,2,14+(i%3)*5);break;
-    case'pagoda':B('#000',-8,-48,32,64);B('#d8b878',0,-14,16,30);B('#a83a2a',-8,-22,32,8);B('#c8503a',-6,-34,28,6);B('#a83a2a',-4,-44,24,6);B('#e8c858',6,-52,4,6);break;
   }
 }

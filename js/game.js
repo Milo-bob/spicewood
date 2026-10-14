@@ -286,11 +286,12 @@ function layerChunk(ci,cj){
 
 // ---------- maps / spawning ----------
 function applyMini(e,name){
-  e.mini=name;e.elite=true;e.kit=MINIKIT[MINIKIT_OF[e.type]||'slam'];e.hp=e.maxHp=Math.round(e.maxHp*6);e.dmg*=1.25;e.big=1.5;e.hw=Math.round(e.hw*1.4);e.hh=Math.round(e.hh*1.4);e.aggro=Math.max(e.aggro,140);
+  e.mini=name;e.elite=true;e.kit=MINIKIT[MINIKIT_OF[e.type]||'slam'];e.hp=e.maxHp=Math.round(e.maxHp*BAL.miniHpMul);e.dmg*=1.25;e.big=1.5;e.hw=Math.round(e.hw*1.4);e.hh=Math.round(e.hh*1.4);e.aggro=Math.max(e.aggro,140);
 }
 function makeEnemy(type,x,y,lvl,elite,variant){
   const d=ENEMIES[type],k=lvl-1;
-  const hp=Math.round(d.hp*(1+.3*k)*(elite?2.4:1)),dmg=d.dmg*(1+.2*k)*(elite?1.3:1);
+  const boss=type==='boss';
+  const hp=Math.max(1,Math.round(d.hp*(boss?1:BAL.hpMul)*(1+.3*k)*(elite?2.4:1))),dmg=d.dmg*(boss?BAL.bossDmgMul:BAL.dmgMul)*(1+.2*k)*(elite?1.3:1);
   return{type,variant,x,y,lvl,elite:!!elite,hp,maxHp:hp,dmg,speed:d.speed,hw:d.hw,hh:d.hh,aggro:d.aggro,
     state:type==='boss'?'dormant':'idle',t:rand(0,2),cd:rand(.5,1.5),hitCd:0,kx:0,ky:0,flash:0,slow:0,stun:0,
     wx:0,wy:0,moving:false,dx:0,dy:1,dir:1,tele:null,seq:0,rot:0,anim:rand(0,6),home:{x,y},kit:type==='boss'?(BOSSKIT[variant||'barkfather']||null):null,weak:0,fx:0,fy:1,shielded:false};
@@ -319,7 +320,7 @@ function loadMap(id,x,y){
     if(s.type==='boss'&&s.variant==='heartwood'&&flags.boss6&&!flags.boss16)s=Object.assign({},s,{variant:'maren',x:s.mx,y:s.my});   // the Heartwood fell, Maren is still standing
     if(s.type==='boss'&&flags[bossOf(s).flag])continue;
     if(s.room&&flags.dun[s.room])continue;
-    const e=makeEnemy(s.type,s.x,s.y,s.lvl+10*(flags.ngp||0),s.elite,s.variant);e.room=s.room;if(s.variant==='heartwood'){e.hw=26;e.hh=14;e.mx=s.mx;e.my=s.my}if(s.mini)applyMini(e,s.mini);else if(e.elite&&e.type!=='boss'&&Math.random()<.7)applyEliteMod(e);if(e.type==='boss'){e.hp=e.maxHp=Math.round(e.maxHp*(2.3+.5*(flags.ngp||0)));e.phase=0}E.push(e);
+    const e=makeEnemy(s.type,s.x,s.y,s.lvl+10*(flags.ngp||0),s.elite,s.variant);e.room=s.room;if(s.variant==='heartwood'){e.hw=26;e.hh=14;e.mx=s.mx;e.my=s.my}if(s.mini)applyMini(e,s.mini);else if(e.elite&&e.type!=='boss'&&Math.random()<.7)applyEliteMod(e);if(e.type==='boss'){e.hp=e.maxHp=Math.round(e.maxHp*(BAL.bossHpMul+.5*(flags.ngp||0)));e.phase=0}E.push(e);
   }
   if(id==='dungeon'&&flags.stage===1)flags.stage=2;
   if(M.after&&flags[M.after.flag])bossAftermath(true);
@@ -490,7 +491,7 @@ function killEnemy(e){
   if(P.mods.killHeal)P.hp=Math.min(P.maxHp,P.hp+P.maxHp*P.mods.killHeal/100);
   const d=ENEMIES[e.type];
   dropGold(e.x,e.y,Math.round(randi(d.gold[0],d.gold[1])*(1+.4*(e.lvl-1))*(e.elite?3:1)));
-  if(Math.random()<(e.elite?.3:.12))DR.push({kind:'hp',x:e.x,y:e.y,t:0,vx:rand(-20,20),vy:rand(-20,20)});
+  if(Math.random()<(e.elite?BAL.eliteDropChance:BAL.dropChance))DR.push({kind:'hp',x:e.x,y:e.y,t:0,vx:rand(-20,20),vy:rand(-20,20)});
   if(e.type==='boss'){bossDefeated(e);return}
   if(e.mini){
     toast(e.mini+' is defeated!','#ffd040');Snd.boom();shake=6;
@@ -521,7 +522,7 @@ function bossDefeated(e){
 }
 function spawnMaren(x,y){
   const e=makeEnemy('boss',x,y,42+10*(flags.ngp||0),false,'maren');
-  e.hp=e.maxHp=Math.round(e.maxHp*(2.3+.5*(flags.ngp||0)));e.phase=0;
+  e.hp=e.maxHp=Math.round(e.maxHp*(BAL.bossHpMul+.5*(flags.ngp||0)));e.phase=0;
   E.push(e);wakeBoss(e);
 }
 // the Heart of Spicewood: Maren waits at the foot of the great tree and takes the Heartseed
@@ -1164,9 +1165,9 @@ function buildMapHint(mw,mh,sc){
   return c;
 }
 function drawMap(){
-  const w=366,h=222,x=Math.round((W-w)/2),y=Math.round((H-h)/2);
+  const w=W-8,h=H-8,x=4,y=4;
   panel(x,y,w,h);
-  text('The Spicewoods',x+w/2,y+7,'#ffd040',9,'center',true);
+  text('The Spicewoods',x+w/2,y+5,'#ffd040',9,'center',true);
   ensureWorld();
   // the explored world: terrain of the whole map under the fog of what the hero has not seen yet
   if(!WMMBASE||WMMBASE.w!==WTEMPLATE.w){
@@ -1174,7 +1175,7 @@ function drawMap(){
     for(let i=0;i<WTEMPLATE.t.length;i++){const col=MMC[WTEMPLATE.t[i]]||[60,60,60];D[i*4]=col[0];D[i*4+1]=col[1];D[i*4+2]=col[2];D[i*4+3]=255}
     g.putImageData(img,0,0);WMMBASE=c;
   }
-  const WWt=WTEMPLATE.w,WHt=WTEMPLATE.h,sc=Math.min(240/WWt,(h-34)/WHt),mw=Math.round(WWt*sc),mh=Math.round(WHt*sc),mx=x+8,my=y+22;
+  const WWt=WTEMPLATE.w,WHt=WTEMPLATE.h,sc=Math.min((w-16)/WWt,(h-32)/WHt),mw=Math.round(WWt*sc),mh=Math.round(WHt*sc),mx=x+Math.round((w-mw)/2),my=y+18+Math.round((h-26-mh)/2);
   cx.fillStyle='#0c0805';cx.fillRect(mx-1,my-1,mw+2,mh+2);
   if(!WMMHINT||WMMHINT.key!==mw+'x'+mh)WMMHINT=buildMapHint(mw,mh,sc);
   cx.drawImage(WMMHINT,mx,my);
@@ -1197,9 +1198,6 @@ function drawMap(){
   for(const r of rumorTargets()){const rx=mx+r.x*sc,ry=my+r.y*sc;cx.fillStyle='#000';cx.fillRect(Math.round(rx)-3,Math.round(ry)-3,7,7);cx.fillStyle=Math.floor(time*3)%2?'#fff0a0':'#ffc840';cx.fillRect(Math.round(rx)-2,Math.round(ry)-2,5,5)}   // peddler rumors
   // the hero
   if(M.id==='world'&&Math.floor(time*2.5)%2){const hx=mx+P.x/TS*sc,hy=my+P.y/TS*sc;cx.fillStyle='#ffe040';cx.fillRect(Math.round(hx)-2,Math.round(hy)-2,5,5);cx.strokeStyle='#000';cx.strokeRect(Math.round(hx)-2.5,Math.round(hy)-2.5,5,5)}
-  const lx=mx+mw+10;
-  text('Yellow: you   Blue: waypoint',lx,my+mh-24,'#a89878',5);
-  text('N or Backspace: close',lx,my+mh-8,'#a89878',5);
   reg(0,0,W,H,()=>{ui=null});
 }
 

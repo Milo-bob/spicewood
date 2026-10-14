@@ -28,6 +28,8 @@ const HEROES=[
 ];
 
 // ---------- Enemies ----------
+// Zelda-LA-style balance knobs (applied in makeEnemy / applyMini / killEnemy)
+const BAL={hpMul:.5,dmgMul:.72,bossDmgMul:.8,bossHpMul:1.5,miniHpMul:3,dropChance:.25,eliteDropChance:.5};
 const ENEMIES={
   beetle:{name:'Ember Beetle',hp:26,dmg:6,speed:30,xp:8,gold:[1,4],hw:5,hh:4,aggro:100},
   wolf:{name:'Rust Wolf',hp:22,dmg:5,speed:64,xp:8,gold:[1,5],hw:6,hh:4,aggro:130},
